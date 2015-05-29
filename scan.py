@@ -164,8 +164,15 @@ class Scan(object):
         self.output.list_of_outputs.append(
             self.output.output(iid=self.image_name, cid=self.con_uuids,
                                os=self.os_release, sevs=sev_dict,
-                               log=sum_log.getvalue()))
+                               log=sum_log.getvalue(), msg=None))
         sum_log.close()
+
+    def _report_not_rhel(self, image):
+        msg = "{0} is not based on RHEL".format(image)
+        self.output.list_of_outputs.append(
+            self.output.output(iid=image, cid=None,
+                               os=None, sevs=None,
+                               log=None, msg=msg))
 
     def _return_xml_values(self, cve):
         cve_string = ("{http://oval.mitre.org/XMLSchema/oval-definitions-5}"

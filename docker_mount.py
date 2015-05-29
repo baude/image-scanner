@@ -33,6 +33,11 @@ class DockerMountError(Exception):
 
 class DockerMount(object):
     """Main DockerMount Class"""
+    _mount = collections.namedtuple('mount_tuple',
+                                    ['container_id', 'thin_pathname',
+                                     'mount_path', 'thin_dev_name',
+                                     'dtype'])
+
     def __init__(self, mnt_point=None, override=False):
         self.override = override
         self.mnt_point = mnt_point
@@ -103,11 +108,13 @@ class DockerMount(object):
         """
         containers = self.conn.containers(all=True)
         for container in containers:
-            if (container['Id'].startswith(input_name)) or \
-                    (('Names' in container) and
-                     (any(input_name in item for item in container['Names']))):
-                return container['Id']
-                break
+            if 'Names' in container and container['Names'] is not None:
+                if (container['Id'].startswith(input_name)) or \
+                        (('Names' in container) and
+                         (any(input_name in item for item in
+                              container['Names']))):
+                    return container['Id']
+                    break
         return None
 
     def is_device_active(self, device):
@@ -216,7 +223,6 @@ class DockerMount(object):
         stderrm and stdout output.
         '''
         pool_name = self.docker_info['DriverStatus'][0][1]
-        self.dev_name = "thin-{0}".format(image_tuple.iid)
         if (self.is_device_active(self.dev_name)).return_code == 1:
             table = '0 {0} thin /dev/mapper/{1} {2}'\
                     ''.format(str(image_tuple.thin_device_size), pool_name,
@@ -255,8 +261,8 @@ class DockerMount(object):
         device
         '''
         cmd = ['lsblk', '-o', 'FSTYPE', '-n', thin_pathname]
-        return_code, err, out = self.subp(cmd)
-        return out
+        fs_return = self.subp(cmd)
+        return fs_return.stdout.strip
 
     # image-input can be an image id or image name
     def mount(self, image_input):
@@ -273,10 +279,6 @@ class DockerMount(object):
         This tuple can be passed to the cleanup def to remove all the
         temporary information.
         '''
-        _mount = collections.namedtuple('mount_tuple',
-                                        ['container_id', 'thin_pathname',
-                                         'mount_path', 'thin_dev_name',
-                                         'dtype'])
         try:
             iid, dtype = self.get_iid(image_input)
             if dtype is "image":
@@ -285,15 +287,17 @@ class DockerMount(object):
                 container_id = iid
 
             image_tuple = self.get_image_info(iid, dtype)
+            self.dev_name = "thin-{0}-{1}".format(image_tuple.iid,
+                                                  container_id[:6])
             activate = self.activate_thin_device(image_tuple)
             mount_point = "/mnt/" if self.mnt_point is None else self.mnt_point
             mnt_dir = os.path.join(mount_point, self.dev_name)
             thin_pathname = os.path.join("/dev/mapper", self.dev_name)
-            return_info = _mount(container_id=container_id,
-                                 thin_pathname=thin_pathname,
-                                 mount_path=mnt_dir,
-                                 thin_dev_name=self.dev_name,
-                                 dtype=dtype)
+            return_info = self._mount(container_id=container_id,
+                                      thin_pathname=thin_pathname,
+                                      mount_path=mnt_dir,
+                                      thin_dev_name=self.dev_name,
+                                      dtype=dtype)
             if activate.return_code == 1:
                 # Activating the thin pool failed
                 # Clean up container
@@ -315,10 +319,9 @@ class DockerMount(object):
                 os.mkdir(mnt_dir)
 
             mount_options = "ro"
-            fs_type = self._get_fs(return_info.thin_pathname).upper().rstrip()
-            if fs_type == "XFS":
+            if (str(self._get_fs(return_info.thin_pathname)).upper().rstrip()) \
+                    == "XFS":
                 mount_options = mount_options + ",nouuid"
-
             cmd = ['mount', '-o', '{0}'.format(mount_options),
                    return_info.thin_pathname, return_info.mount_path]
             make_mount = self.subp(cmd)
@@ -330,6 +333,33 @@ class DockerMount(object):
             return dm_err
 
         return return_info
+
+    def unmount(self, path_name):
+        '''
+        Allows for a standalone umount and clean up of things when
+        only the mount-point is known.  This is useful for those
+        using this class in standalone mode where the image_tuple
+        returned from mount is lost
+        '''
+
+        cmd = ['findmnt', '-n', '-o', 'SOURCE', path_name]
+        out = self.subp(cmd)
+        device_name = (out.stdout).strip()
+        thin_dev_name = os.path.basename(device_name)
+        iid, short_cid = thin_dev_name.replace("thin-", "").split("-")
+        # FIXME
+        # I dont love that the iid is defined here again
+        iid, dtype = (self.get_iid(iid))
+        cid = self.get_cid(short_cid)
+        umount_tuple = self._mount(container_id=cid,
+                                   thin_pathname=device_name,
+                                   mount_path=path_name,
+                                   thin_dev_name=os.path.basename(device_name),
+                                   dtype=dtype)
+        self.cleanup(umount_tuple)
+
+        # FIXME
+        # Do we need or want a return of soome sort?
 
     def cleanup(self, return_info):
         '''

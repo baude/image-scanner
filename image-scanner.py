@@ -35,9 +35,6 @@ import time
 from dist_breakup import CVEParse
 from docker_mount import DockerMount
 
-# Monkey patch for tarfile courtesy of vbatts
-from xtarfile import tarfile
-
 
 class Singleton(object):
     _instance = None

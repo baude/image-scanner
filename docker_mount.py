@@ -108,11 +108,13 @@ class DockerMount(object):
         """
         containers = self.conn.containers(all=True)
         for container in containers:
-            if (container['Id'].startswith(input_name)) or \
-                    (('Names' in container) and
-                     (any(input_name in item for item in container['Names']))):
-                return container['Id']
-                break
+            if 'Names' in container and container['Names'] is not None:
+                if (container['Id'].startswith(input_name)) or \
+                        (('Names' in container) and
+                         (any(input_name in item for item in
+                              container['Names']))):
+                    return container['Id']
+                    break
         return None
 
     def is_device_active(self, device):

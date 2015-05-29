@@ -18,22 +18,18 @@
 
 import os
 import docker
-import platform
-import subprocess
 import urllib2
 import bz2
 import timeit
-import shutil
-import xml.etree.ElementTree as ET
-import collections
 import argparse
 import threading
-import StringIO
 import logging
 import sys
 import time
 from dist_breakup import CVEParse
-from docker_mount import DockerMount
+from applicationconfiguration import ApplicationConfiguration
+from reporter import Reporter
+from scan import Scan
 
 
 class Singleton(object):
@@ -106,237 +102,14 @@ class ContainerSearch(object):
         return fcons
 
 
-class Reporter(object):
-    def __init__(self):
-        self.output = collections.namedtuple('Summary', 'iid, cid, os, sevs,'
-                                             'log')
-        self.list_of_outputs = []
-        self.ac = ApplicationConfiguration()
-        self.report_dir = os.path.join(self.ac.reportdir, "openscap_reports")
-
-        if not os.path.exists(self.report_dir):
-            os.mkdir(self.report_dir)
-
-    def report_summary(self):
-        print "Summary:"
-        for image in self.list_of_outputs:
-            short_cid_list = []
-            for cid in image.cid:
-                short_cid_list.append(cid[:12])
-            print "{0}Image: {1}".format(" " * 5, image.iid)
-            print "{0}OS: {1}".format(" " * 5, image.os.rstrip())
-            print "{0}Containers affected " \
-                  "({1}): {2}".format(" " * 5, len(short_cid_list),
-                                      ', '.join(short_cid_list))
-            print "{0}Results: Critical({1}) Important({2}) Moderate({3}) " \
-                  "Low({4})".format(" " * 5, image.sevs['Critical'],
-                                    image.sevs['Important'],
-                                    image.sevs['Moderate'],  image.sevs['Low'])
-            print ""
-
-        report_files = []
-        for image in self.list_of_outputs:
-            short_image = image.iid[:12] + ".scap"
-            out = open(os.path.join(self.report_dir, short_image), 'wb')
-            report_files.append(short_image)
-            out.write(image.log)
-            out.close
-
-        for report in report_files:
-            print "Wrote CVE Summary report: {0}".format(
-                os.path.join(self.report_dir, report))
-
-
-class foo(object):
-    def __init__(self, image_uuid, con_uuids, output):
-        self.c = docker.Client(base_url='unix://var/run/docker.sock',
-                               timeout=10)
-        self.image_name = image_uuid
-        self.ac = ApplicationConfiguration()
-        self.tb_location = os.path.join(self.ac.workdir,
-                                        self.image_name + ".tar")
-        self.CVEs = collections.namedtuple('CVEs', 'title, severity,'
-                                           'cve_ref_id, cve_ref_url,'
-                                           'rhsa_ref_id, rhsa_ref_url')
-
-        self.list_of_CVEs = []
-        self.con_uuids = con_uuids
-        self.output = output
-        self.report_dir = os.path.join(self.ac.workdir, "openscap_reports")
-        if not os.path.exists(self.report_dir):
-            os.mkdir(self.report_dir)
-
-        start = time.time()
-        self.DM = DockerMount("/tmp")
-        self.dm_results = self.DM.mount(image_uuid)
-        logging.debug("Created scanning chroot in {0}"
-                      " seconds".format(time.time() - start))
-        self.dest = self.dm_results.mount_path
-
-    def get_release(self):
-        etc_release_path = os.path.join(self.dest, "rootfs",
-                                        "etc/redhat-release")
-
-        if not os.path.exists(etc_release_path):
-            logging.info("{0} is not RHEL based".format(self.image_name))
-            return False
-
-        self.os_release = open(etc_release_path).read()
-
-        rhel = 'Red Hat Enterprise Linux'
-
-        if rhel in self.os_release:
-            logging.debug("{0} is {1}".format(self.image_name,
-                                              self.os_release.rstrip()))
-            return True
-        else:
-            logging.info("{0} is {1}".format(self.image_name,
-                                             self.os_release.rstrip()))
-            return False
-
-    def scan(self):
-        logging.debug("Scanning chroot {0}".format(self.image_name))
-        hostname = open("/etc/hostname").read().rstrip()
-        os.environ["OSCAP_PROBE_ARCHITECTURE"] = platform.processor()
-        os.environ["OSCAP_PROBE_ROOT"] = os.path.join(self.dest, "rootfs")
-        os.environ["OSCAP_PROBE_OS_NAME"] = platform.system()
-        os.environ["OSCAP_PROBE_OS_VERSION"] = platform.release()
-        os.environ["OSCAP_PROBE_"
-                   "PRIMARY_HOST_NAME"] = "{0}:{1}".format(hostname,
-                                                           self.image_name)
-
-        # We only support RHEL 6|7 in containers right now
-
-        if "Red Hat Enterprise Linux" in self.os_release:
-            if "7." in self.os_release:
-                self.chroot_cve_file = os.path.join(
-                    self.ac.workdir, "Red_Hat_Enterprise_Linux_7.xml")
-            if "6." in self.os_release:
-                self.chroot_cve_file = os.path.join(
-                    self.ac.workdir, "Red_Hat_Enterprise_Linux_6.xml")
-
-        cmd = ['oscap', 'oval', 'eval', '--report',
-               os.path.join(self.report_dir,
-                            self.image_name + '.html'),
-               '--results',
-               os.path.join(self.report_dir,
-                            self.image_name + '.xml'), self.chroot_cve_file]
-
-        self.result = subprocess.check_output(cmd)
-
-    def capture_run(self, cmd):
-        '''
-        Subprocess command that captures and returns the output and
-        return code.
-        '''
-
-        r = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-        return r.communicate(), r.returncode
-
-    def get_cons(self, fcons, short_iid):
-        cons = []
-        for image in fcons:
-            if image.startswith(short_iid):
-                for con in fcons[image]:
-                    cons.append(con['uuid'][:12])
-        return cons
-
-    def report_results(self):
-        cve_tree = ET.parse(self.chroot_cve_file)
-        self.cve_root = cve_tree.getroot()
-
-        for line in self.result.splitlines():
-            split_line = line.split(':')
-            # Not in love with how I did this
-            # Should find a better marked to know if it is a line
-            # a parsable line.
-            if (len(split_line) == 5) and ('true' in split_line[4]):
-                self._return_xml_values(line.split()[1][:-1])
-
-        sev_dict = {}
-        sum_log = StringIO.StringIO()
-        sum_log.write("Image: {0} ({1})".format(self.image_name,
-                                                self.os_release))
-        cons = self.get_cons(self.ac.fcons, self.image_name)
-        sum_log.write("\nContainers based on this image ({0}): {1}\n"
-                      .format(len(cons), ", ".join(cons)))
-        for sev in ['Critical', 'Important', 'Moderate', 'Low']:
-            sev_counter = 0
-            for cve in self.list_of_CVEs:
-                if cve.severity == sev:
-                    sev_counter += 1
-                    sum_log.write("\n")
-                    fields = list(self.CVEs._fields)
-                    fields.remove('title')
-                    sum_log.write("{0}{1}: {2}\n"
-                                  .format(" " * 5, "Title",
-                                          getattr(cve, "title")))
-
-                    for field in fields:
-                        sum_log.write("{0}{1}: {2}\n"
-                                      .format(" " * 10, field.title(),
-                                              getattr(cve, field)))
-            sev_dict[sev] = sev_counter
-        self.output.list_of_outputs.append(
-            self.output.output(iid=self.image_name, cid=self.con_uuids,
-                               os=self.os_release, sevs=sev_dict,
-                               log=sum_log.getvalue()))
-        sum_log.close()
-
-    def _return_xml_values(self, cve):
-        cve_string = ("{http://oval.mitre.org/XMLSchema/oval-definitions-5}"
-                      "definitions/*[@id='%s']" % cve)
-        cve_xml = self.cve_root.find(cve_string)
-        title = cve_xml.find("{http://oval.mitre.org/XMLSchema/oval-definitions"
-                             "-5}metadata/{http://oval.mitre.org/XMLSchema/"
-                             "oval-definitions-5}title")
-        cve_id = cve_xml.find("{http://oval.mitre.org/XMLSchema/"
-                              "oval-definitions-5}metadata/{http://oval.mitre."
-                              "org/XMLSchema/oval-definitions-5}reference"
-                              "[@source='CVE']")
-        sev = (cve_xml.find("{http://oval.mitre.org/XMLSchema/oval-definitions"
-                            "-5}metadata/{http://oval.mitre.org/XMLSchema/oval"
-                            "-definitions-5}advisory/")).text
-
-        if cve_id is not None:
-            cve_ref_id = cve_id.attrib['ref_id']
-            cve_ref_url = cve_id.attrib['ref_url']
-        else:
-            cve_ref_id = None
-            cve_ref_url = None
-
-        rhsa_id = cve_xml.find("{http://oval.mitre.org/XMLSchema/oval-"
-                               "definitions-5}metadata/{http://oval.mitre.org"
-                               "/XMLSchema/oval-definitions-5}reference"
-                               "[@source='RHSA']")
-
-        if rhsa_id is not None:
-            rhsa_ref_id = rhsa_id.attrib['ref_id']
-            rhsa_ref_url = rhsa_id.attrib['ref_url']
-        else:
-            rhsa_ref_id = None
-            rhsa_ref_url = None
-
-        self.list_of_CVEs.append(
-            self.CVEs(title=title.text, cve_ref_id=cve_ref_id,
-                      cve_ref_url=cve_ref_url, rhsa_ref_id=rhsa_ref_id,
-                      rhsa_ref_url=rhsa_ref_url, severity=sev))
-
-    def clean_up_chroot(self):
-        logging.debug("Removing temporary chroot at {0}".format(self.dest))
-        shutil.rmtree(self.dest)
-        logging.debug("Removing temporary tarball {0}"
-                      .format(self.tb_location))
-
-
 class Worker(object):
     def __init__(self, args):
         self.procs = args.number
+        self.ac = ApplicationConfiguration(parserargs=args)
         self.cs = ContainerSearch()
         self.output = Reporter()
-        self.ac = ApplicationConfiguration()
-        self.cve_file = os.path.join(self.ac.workdir, "com.redhat.rhsa-all.xml")
+        self.cve_file = os.path.join(self.ac.workdir,
+                                     "com.redhat.rhsa-all.xml")
         self.cve_file_bz = os.path.join(self.ac.workdir,
                                         "com.redhat.rhsa-all.xml.bz2")
 
@@ -469,7 +242,7 @@ class Worker(object):
         sys.stdout.flush()
 
     def search_containers(self, image, cids, output):
-        f = foo(image, cids, output)
+        f = Scan(image, cids, output)
         if f.get_release():
 
             t = timeit.Timer(f.scan).timeit(number=1)
@@ -485,19 +258,6 @@ class Worker(object):
         logging.debug("Removing temporary chroot for image {0} completed in"
                       " {1} seconds".format(image, time.time() - start))
         self.threads_complete += 1
-
-
-class ApplicationConfiguration(Singleton):
-    def _singleton_init(self, parserargs=None):
-        super(ApplicationConfiguration, self)._singleton_init()
-        self.workdir = parserargs.workdir
-        self.logfile = parserargs.logfile
-        self.number = parserargs.number
-        self.reportdir = parserargs.reportdir
-        self.nocache = parserargs.nocache
-
-    def __init__(self, parserargs=None):
-        pass
 
     def start_application(self):
         start_time = time.time()
@@ -561,6 +321,5 @@ if len(sys.argv) == 1:
     parser.print_help()
     sys.exit(1)
 
-
-ac = ApplicationConfiguration(parserargs=args)
-ac.start_application()
+work = Worker(args)
+work.start_application()

@@ -176,55 +176,6 @@ class foo(object):
                       " seconds".format(time.time() - start))
         self.dest = self.dm_results.mount_path
 
-        # Create workdir dir structure
-        # for dir in [self.dest, self.tar_dest]:
-        #    if not os.path.exists(dir):
-        #        os.mkdir(dir)
-        #    else:
-        #        logging.debug("Removing temporary chroot at {0}"
-        #                      .format(self.dest))
-        #        shutil.rmtree(self.dest)
-        #        os.mkdir(dir)
-
-    def save_image(self):
-        logging.debug("Saving Image {0} to {1}".format(self.image_name,
-                                                       self.tb_location))
-        cmd = ['docker', 'save', '-o', self.tb_location, self.image_name]
-        self.capture_run(cmd)
-
-    def extract_new(self):
-        logging.debug("Extracting results of image {0}".format(self.image_name))
-        tf = tarfile.open(self.tb_location)
-        for mem in tf.getmembers():
-            if os.path.basename(mem.name) == "layer.tar":
-                # tf.extractall(path=self.tar_dest, members=[mem])
-                # Python 2.x tarfile is broken wrt to ascii/utf filenames
-                # Using subprocess to avoid problems
-
-                cmd1 = ['tar', 'xOf', self.tb_location, mem.name]
-                cmd2 = ['tar', 'x', '-C', self.dest]
-
-                p1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE)
-                p2 = subprocess.Popen(cmd2, stdin=p1.stdout,
-                                      stdout=subprocess.PIPE)
-                p1.stdout.close()
-                p2.wait()
-
-        tf.close()
-
-    def create_image(self):
-        temp_con = self.c.create_container(self.image_name, '/bin/true')
-        cmd1 = ['docker', 'export', temp_con['Id']]
-        cmd2 = ['tar', 'x', '-C', self.dest]
-
-        p1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE)
-        p2 = subprocess.Popen(cmd2, stdin=p1.stdout,
-                              stdout=subprocess.PIPE)
-        p1.stdout.close()
-        p2.wait()
-
-        self.c.remove_container(temp_con['Id'])
-
     def get_release(self):
         etc_release_path = os.path.join(self.dest, "rootfs",
                                         "etc/redhat-release")
@@ -522,18 +473,6 @@ class Worker(object):
 
     def search_containers(self, image, cids, output):
         f = foo(image, cids, output)
-        # t = timeit.Timer(f.create_image).timeit(number=1)
-        # logging.debug("Created chroot image {0} completed in {1} seconds"
-        #              .format(image, t))
-
-        # t = timeit.Timer(f.save_image).timeit(number=1)
-        # logging.debug("Saving image {0} completed in {1} seconds"
-        #               .format(image, t))
-
-        # t = timeit.Timer(f.extract_new).timeit(number=1)
-        # logging.debug("Extracting image {0} completed in {1} seconds"
-        #               .format(image, t))
-
         if f.get_release():
 
             t = timeit.Timer(f.scan).timeit(number=1)

@@ -24,7 +24,7 @@ from applicationconfiguration import ApplicationConfiguration
 class Reporter(object):
     def __init__(self):
         self.output = collections.namedtuple('Summary', 'iid, cid, os, sevs,'
-                                             'log')
+                                             'log, msg',)
         self.list_of_outputs = []
         self.ac = ApplicationConfiguration()
         self.report_dir = os.path.join(self.ac.reportdir, "openscap_reports")
@@ -36,26 +36,32 @@ class Reporter(object):
         print "Summary:"
         for image in self.list_of_outputs:
             short_cid_list = []
-            for cid in image.cid:
-                short_cid_list.append(cid[:12])
             print "{0}Image: {1}".format(" " * 5, image.iid)
-            print "{0}OS: {1}".format(" " * 5, image.os.rstrip())
-            print "{0}Containers affected " \
-                  "({1}): {2}".format(" " * 5, len(short_cid_list),
-                                      ', '.join(short_cid_list))
-            print "{0}Results: Critical({1}) Important({2}) Moderate({3}) " \
-                  "Low({4})".format(" " * 5, image.sevs['Critical'],
-                                    image.sevs['Important'],
-                                    image.sevs['Moderate'],  image.sevs['Low'])
-            print ""
+            if image.msg is None:
+                for cid in image.cid:
+                    short_cid_list.append(cid[:12])
+                print "{0}OS: {1}".format(" " * 5, image.os.rstrip())
+                print "{0}Containers affected " \
+                      "({1}): {2}".format(" " * 5, len(short_cid_list),
+                                          ', '.join(short_cid_list))
+                print "{0}Results: Critical({1}) Important({2}) Moderate({3}) " \
+                      "Low({4})".format(" " * 5, image.sevs['Critical'],
+                                        image.sevs['Important'],
+                                        image.sevs['Moderate'],  image.sevs['Low'])
+                print ""
+            else:
+                print "{0}Results: {1}".format(" " * 5, image.msg)
+                print ""
+
 
         report_files = []
         for image in self.list_of_outputs:
-            short_image = image.iid[:12] + ".scap"
-            out = open(os.path.join(self.report_dir, short_image), 'wb')
-            report_files.append(short_image)
-            out.write(image.log)
-            out.close
+            if image.msg is None:
+                short_image = image.iid[:12] + ".scap"
+                out = open(os.path.join(self.report_dir, short_image), 'wb')
+                report_files.append(short_image)
+                out.write(image.log)
+                out.close
 
         for report in report_files:
             print "Wrote CVE Summary report: {0}".format(

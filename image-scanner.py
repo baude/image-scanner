@@ -251,6 +251,9 @@ class Worker(object):
                           .format(image, t))
 
             timeit.Timer(f.report_results).timeit(number=1)
+        else:
+            # This is not a RHEL image or container
+            f._report_not_rhel(image)
 
         # t = timeit.Timer(f.clean_up_chroot).timeit(number=1)
         start = time.time()

@@ -14,7 +14,7 @@ LABEL Version=1.0
 LABEL Vendor="Red Hat" License=GPLv3
 
 
-LABEL RUN="run --rm -it --privileged -v /proc/:/hostproc/ -v /sys/fs/cgroup:/sys/fs/cgroup  -v /var/log:/var/log -v /tmp:/tmp -v /run:/run -v /var/lib/docker/devicemapper/metadata/:/var/lib/docker/devicemapper/metadata/ -v /dev/:/dev/ --env container=docker --net=host --cap-add=SYS_ADMIN --ipc=host IMAGE"
+LABEL RUN="docker run --rm -it --privileged -v /proc/:/hostproc/ -v /sys/fs/cgroup:/sys/fs/cgroup  -v /var/log:/var/log -v /tmp:/tmp -v /run:/run -v /var/lib/docker/devicemapper/metadata/:/var/lib/docker/devicemapper/metadata/ -v /dev/:/dev/ --env container=docker --net=host --cap-add=SYS_ADMIN --ipc=host IMAGE"
 
 ADD image-scanner.py /usr/bin/image-scanner
 RUN chmod a+x /usr/bin/image-scanner

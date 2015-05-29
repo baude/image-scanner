@@ -19,6 +19,7 @@ LABEL RUN="docker run --rm -it --privileged -v /proc/:/hostproc/ -v /sys/fs/cgro
 ADD image-scanner.py /usr/bin/image-scanner
 RUN chmod a+x /usr/bin/image-scanner
 ADD dist_breakup.py /usr/bin/
+ADD docker_mount.py /usr/lib/python2.7/site-packages/
 
 RUN echo 'PS1="[image-scanner]#  "' > /etc/profile.d/ps1.sh
 

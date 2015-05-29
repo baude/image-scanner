@@ -262,7 +262,7 @@ class DockerMount(object):
         '''
         cmd = ['lsblk', '-o', 'FSTYPE', '-n', thin_pathname]
         fs_return = self.subp(cmd)
-        return fs_return.stdout.strip
+        return fs_return.stdout.strip()
 
     # image-input can be an image id or image name
     def mount(self, image_input):
@@ -319,8 +319,8 @@ class DockerMount(object):
                 os.mkdir(mnt_dir)
 
             mount_options = "ro"
-            if (str(self._get_fs(return_info.thin_pathname)).upper().rstrip()) \
-                    == "XFS":
+            fstype = str(self._get_fs(return_info.thin_pathname))
+            if fstype.upper() == "XFS":
                 mount_options = mount_options + ",nouuid"
             cmd = ['mount', '-o', '{0}'.format(mount_options),
                    return_info.thin_pathname, return_info.mount_path]

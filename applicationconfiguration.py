@@ -16,8 +16,10 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
+''' Class to handle references '''
 
 class Singleton(object):
+    ''' Singleton class to pass references'''
     _instance = None
 
     def __new__(cls, *args, **kwargs):
@@ -36,13 +38,18 @@ class Singleton(object):
 
 
 class ApplicationConfiguration(Singleton):
+    '''Application Configuration'''
     def _singleton_init(self, parserargs=None):
+        ''' Init for Application Configuration '''
         super(ApplicationConfiguration, self)._singleton_init()
         self.workdir = parserargs.workdir
         self.logfile = parserargs.logfile
         self.number = parserargs.number
         self.reportdir = parserargs.reportdir
         self.nocache = parserargs.nocache
+        self.cons = None
+        self.images = None
 
     def __init__(self, parserargs=None):
+        ''' init '''
         pass

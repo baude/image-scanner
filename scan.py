@@ -168,7 +168,7 @@ class Scan(object):
         sum_log.close()
 
     def _report_not_rhel(self, image):
-        msg = "{0} is not based on RHEL".format(image)
+        msg = "{0} is not based on RHEL".format(image[:8])
         self.output.list_of_outputs.append(
             self.output.output(iid=image, cid=None,
                                os=None, sevs=None,

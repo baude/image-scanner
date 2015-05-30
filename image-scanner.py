@@ -30,6 +30,7 @@ from dist_breakup import CVEParse
 from applicationconfiguration import ApplicationConfiguration
 from reporter import Reporter
 from scan import Scan
+from docker_mount import DockerMount, DockerMountError
 
 
 class Singleton(object):
@@ -66,6 +67,8 @@ class ContainerSearch(object):
         self.fcons_active = self._formatCons(self.active_containers)
         self.ac = ApplicationConfiguration()
         self.ac.fcons = self.fcons
+        self.ac.cons = self.cons
+        self.ac.images = self.images
 
     def _returnImageList(self, images):
         '''
@@ -114,11 +117,11 @@ class Worker(object):
                                         "com.redhat.rhsa-all.xml.bz2")
 
     def _get_cids_for_image(self, cs, image):
-            cids = []
-            if image in cs.fcons:
-                for container in cs.fcons[image]:
-                    cids.append(container['uuid'])
-            return cids
+        cids = []
+        if image in cs.fcons:
+            for container in cs.fcons[image]:
+                cids.append(container['uuid'])
+        return cids
 
     def get_cve_data(self):
 
@@ -152,18 +155,17 @@ class Worker(object):
 
         return thread_names
 
-    def only_containers(self, running):
-        image_list = []
+    def onlyactive(self):
+        ''' This function sorts of out only the active containers'''
+        con_list = []
         # Rid ourselves of 0 size containers
-        for i in self.cs.fcons.keys():
-            for container in self.cs.fcons[i]:
-                if container['running'] in running:
-                    if (i not in image_list) and (i in self.cs.imagelist):
-                        image_list.append(i)
-        if len(image_list) == 0:
-            print "There are no containers on this system"
+        for container in self.cs.active_containers:
+            con_list.append(container['Id'])
+        if len(con_list) == 0:
+            print "There are no active containers on this system"
             sys.exit(1)
-        self._do_work(image_list)
+        else:
+            self._do_work(con_list)
 
     def allimages(self):
         if len(self.cs.imagelist) == 0:
@@ -175,14 +177,14 @@ class Worker(object):
         self._do_work(image_list)
 
     def allcontainers(self):
-        image_list = []
-        for i in self.cs.fcons.keys():
-            if (len(i) > 0) and (i not in image_list):
-                image_list.append(i)
-        if len(image_list) == 0:
+        if len(self.cs.cons) == 0:
             print "There are no containers on this system"
             sys.exit(1)
-        self._do_work(image_list)
+        else:
+            con_list = []
+            for con in self.cs.cons:
+                con_list.append(con['Id'])
+            self._do_work(con_list)
 
     def _do_work(self, image_list):
         cp = CVEParse(self.ac.workdir)
@@ -262,6 +264,26 @@ class Worker(object):
                       " {1} seconds".format(image, time.time() - start))
         self.threads_complete += 1
 
+    def _check_input(self, image_list):
+        '''
+        Takes a list of image ids, image-names, container ids, or
+        container-names and returns a list of images ids and
+        container ids
+        '''
+        dm = DockerMount()
+        work_list = []
+        # verify
+        try:
+            for image in image_list:
+                iid, dtype = dm.get_iid(image)
+                work_list.append(iid)
+        except DockerMountError:
+            print "Unable to associate {0} with any image " \
+                  "or container".format(image)
+            sys.exit(1)
+        print work_list
+        return work_list
+
     def start_application(self):
         start_time = time.time()
         logging.basicConfig(filename=args.logfile,
@@ -270,19 +292,15 @@ class Worker(object):
         work = Worker(args)
 
         if args.onlyactive:
-            work.only_containers(running=[True])
+            work.onlyactive()
         if args.allcontainers:
             work.allcontainers()
         if args.allimages:
             work.allimages()
         if args.images:
-            # Check to make sure we have a valid image list
-            for image in args.images:
-                if not any(found.startswith(image)
-                           for found in work.cs.imagelist):
-                    print "{0} is not a valid image ID".format(image)
-                    sys.exit(1)
-            work.list_of_images(args.images)
+            # Check to make sure we have  valid input
+            image_list = self._check_input(args.images)
+            work.list_of_images(image_list)
 
         end_time = time.time()
         duration = (end_time - start_time)

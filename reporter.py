@@ -33,6 +33,10 @@ class Reporter(object):
 
         if not os.path.exists(self.report_dir):
             os.mkdir(self.report_dir)
+        self.content = ""
+
+    def add_content(self, content):
+        self.content = self.content + content
 
     def report_summary(self):
         '''
@@ -45,22 +49,42 @@ class Reporter(object):
             dtype = self._get_dtype(image.iid)
             print "{0}{1}: {2}".format(" " * 5, dtype, image.iid)
             if image.msg is None:
+                html_p = "<tr><td><b>{0}</b>:<td colspan=2><a href='{1}.html'>{2}</a></td></tr>".format(dtype, image.iid, image.iid)
+                self.add_content(html_p) 
                 for cid in image.cid:
                     short_cid_list.append(cid[:12])
                 print "{0}OS: {1}".format(" " * 5, image.os.rstrip())
+                html_p = "<tr><td>{0}</td><td><b>OS:</b></td><td>{1}</td></tr>".format(" " * 5, image.os.rstrip())
+                self.add_content(html_p)
                 if dtype is not "Container":
                     print "{0}Containers affected " \
                           "({1}): {2}".format(" " * 5, len(short_cid_list),
                                               ', '.join(short_cid_list))
+                    html_p = "<tr><td>{0}</td><td><b>Containers affected:</b></td><td>" \
+                          "({1}): {2}</td></tr>".format(" " * 5, len(short_cid_list),
+                                              ', '.join(short_cid_list))
+                    self.add_content(html_p)
                 print "{0}Results: Critical({1}) Important({2}) Moderate({3})"\
-                      " Low({4})".format(" " * 5, image.sevs['Critical'],
+                        " Low({4})".format(" " * 5, image.sevs['Critical'],
                                          image.sevs['Important'],
                                          image.sevs['Moderate'],
                                          image.sevs['Low'])
+                html_p = "<tr><td>{0}</td><td><b>Results:</b></td><td>Critical({1}) Important({2}) Moderate({3})"\
+                        " Low({4})</td></tr>".format(" " * 5, image.sevs['Critical'],
+                                         image.sevs['Important'],
+                                         image.sevs['Moderate'],
+                                         image.sevs['Low'])
+                self.add_content(html_p)
                 print ""
             else:
+                html_p = "<tr><td><b>{0}</b>:<td colspan=2>{1}</td></tr>".format(dtype, image.iid)
+                self.add_content(html_p) 
                 print "{0}Results: {1}".format(" " * 5, image.msg)
+                html_p =  "<tr><td>{0}</td><td><b>Results</b>:</td><td>{1}</td></tr>".format(" " * 5, image.msg)
+                self.add_content(html_p)
                 print ""
+            html_p = "<tr><td colspan=3> </td></tr>"
+            self.add_content(html_p)
 
         report_files = []
         for image in self.list_of_outputs:
@@ -71,9 +95,22 @@ class Reporter(object):
                 out.write(image.log)
                 out.close
 
+        print "Writing summary and reports to {0}".format(self.report_dir)
         for report in report_files:
-            print "Wrote CVE Summary report: {0}".format(
-                os.path.join(self.report_dir, report))
+                os.path.join(self.report_dir, report)
+
+        sum_out = open(os.path.join(self.report_dir, "summary.html"), "wb")
+        sum_html = """
+        <html><body>
+        <h2>Summary</h2>
+        <table>
+        %(content)s
+        </table>
+        </body>
+        </html>
+        """ % {'content': self.content}
+        sum_out.write(sum_html)
+        sum_out.close()
 
     def _get_dtype(self, iid):
         ''' Returns whether the given id is an image or container '''

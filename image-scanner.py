@@ -31,6 +31,8 @@ from applicationconfiguration import ApplicationConfiguration
 from reporter import Reporter
 from scan import Scan
 from docker_mount import DockerMount, DockerMountError
+import serv
+import subprocess
 
 
 class Singleton(object):
@@ -197,7 +199,6 @@ class Worker(object):
 
             self.get_cve_data()
             self.extract_cve_data()
-            cp.create_tar()
 
             print "Splitting master XML file into distribution " \
                   "specific XML files"
@@ -284,23 +285,39 @@ class Worker(object):
         print work_list
         return work_list
 
+    def start_web(self, workdir):
+        report_dir = os.path.join(workdir, "openscap_reports")
+        if not os.path.exists(report_dir):
+            os.mkdir(report_dir)
+        serv.NodeCherryServer(workdir)
+
+    def stop_web(self):
+        import requests
+        stop = requests.Session()
+        try:
+            stop.get('http://localhost:8001/stop')
+        except requests.exceptions.ConnectionError:
+            pass
+
     def start_application(self):
         start_time = time.time()
         logging.basicConfig(filename=args.logfile,
                             format='%(asctime)s %(levelname)-8s %(message)s',
                             datefmt='%m-%d %H:%M', level=logging.DEBUG)
-        work = Worker(args)
-
+        if args.startweb:
+            self.start_web(args.workdir) 
+        if args.stopweb:
+            self.stop_web()
         if args.onlyactive:
-            work.onlyactive()
+            self.onlyactive()
         if args.allcontainers:
-            work.allcontainers()
+            self.allcontainers()
         if args.allimages:
-            work.allimages()
+            self.allimages()
         if args.images:
             # Check to make sure we have  valid input
             image_list = self._check_input(args.images)
-            work.list_of_images(image_list)
+            self.list_of_images(image_list)
 
         end_time = time.time()
         duration = (end_time - start_time)
@@ -333,6 +350,12 @@ parser.add_argument('-r', '--reportdir', help='directory to store reports',
 parser.add_argument('-w', '--workdir', help='workdir to use, defaults to /tmp',
                     default="/tmp")
 parser.add_argument('--nocache', default=False, help='Do not cache anything',
+                    action='store_true')
+
+group.add_argument('--startweb', default=False, help='Start a web backend',
+                    action='store_true')
+
+group.add_argument('--stopweb', default=False, help='Stop the web backend',
                     action='store_true')
 
 args = parser.parse_args()

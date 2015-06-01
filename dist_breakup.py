@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+# !/usr/bin/env python
 # Copyright (C) 2015 Brent Baude <bbaude@redhat.com>
 #
 # This library is free software; you can redistribute it and/or
@@ -15,6 +15,7 @@
 # License along with this library; if not, write to the
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
+''' Breaks up the master XML into disto version specific files'''
 
 import xml.etree.ElementTree as ET
 import os
@@ -22,6 +23,7 @@ import tarfile
 
 
 class PlatformTree(object):
+    '''PlatformTree class'''
     def __init__(self, root):
         self.nt_root = ET.Element(root.tag)
         self.nt_root.attrib = root.attrib
@@ -55,25 +57,26 @@ class PlatformTree(object):
 
 
 class CVEParse(object):
+    ''' This class does the actual parsing'''
+    super_names = ['Red Hat Enterprise Linux 3',
+                   'Red Hat Enterprise Linux 4',
+                   'Red Hat Enterprise Linux 5',
+                   'Red Hat Enterprise Linux 6',
+                   'Red Hat Enterprise Linux 7']
+
     def __init__(self, workdir):
         self.workdir = workdir
-        self.dist_tar = os.path.join(self.workdir, "dist_files.tar")
         self.platform_dict = {}
         self.tests_dict = {}
         self.objects_dict = {}
         self.states_dict = {}
         self.platform_hash = {}
         self.out_names = []
-        self.super_names = ['Red Hat Enterprise Linux 3',
-                            'Red Hat Enterprise Linux 4',
-                            'Red Hat Enterprise Linux 5',
-                            'Red Hat Enterprise Linux 6',
-                            'Red Hat Enterprise Linux 7']
-
+        self.dist_tar = os.path.join(self.workdir, "dist_files.tar")
         self.xmlf = os.path.join(self.workdir, "com.redhat.rhsa-all.xml")
 
     def create_platform_hash(self):
-
+        ''' Creates a dict with all the platforms in the XML file'''
         platforms = self.root.findall(".//{http://oval.mitre.org/XMLSchema/"
                                       "oval-definitions-5}platform")
         platform_names = []
@@ -97,6 +100,7 @@ class CVEParse(object):
                 self.platform_hash[platform] = platform
 
     def write_xml(self):
+        ''' Outputs the split XML files '''
         for k in self.platform_dict.keys():
             out_tree = ET.ElementTree(self.platform_dict[k].nt_root)
             if k is None:
@@ -107,13 +111,8 @@ class CVEParse(object):
                 self.out_names.append(out_name)
             out_tree.write(out_name)
 
-    def create_tar(self):
-        tar = tarfile.open(self.dist_tar, 'w')
-        for outfile in self.out_names:
-            tar.add(outfile)
-        tar.close()
-
     def _create_dicts(self):
+        ''' Creates dictionaries of content'''
         tests = self.root.findall("{http://oval.mitre.org/XMLSchema/oval"
                                   "-definitions-5}tests/*")
         objects = self.root.findall("{http://oval.mitre.org/XMLSchema/"
@@ -131,6 +130,7 @@ class CVEParse(object):
             self.states_dict[state.attrib['id']] = state
 
     def def_walker(self, definition):
+        ''' "Walks" the XML tree'''
         platforms = definition.findall("{http://oval.mitre.org/XMLSchema/"
                                        "oval-definitions-5}metadata/{http"
                                        "://oval.mitre.org/XMLSchema/oval-"
@@ -182,6 +182,7 @@ class CVEParse(object):
         self.thread_complete.append(definition)
 
     def parse_for_platform(self):
+        ''' Parses by platform '''
         self.tree = ET.parse(self.xmlf)
         self.root = self.tree.getroot()
         self.create_platform_hash()

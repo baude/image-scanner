@@ -1,0 +1,25 @@
+FROM fedora:latest
+
+# Debug only
+RUN dnf -y install vim strace file less
+
+RUN dnf -y install docker openscap-scanner python-cherrypy python-docker-py
+
+
+LABEL Version=1.0
+LABEL Vendor="Red Hat" License=GPLv3
+
+
+LABEL RUN="docker run --rm -it --privileged -v /proc/:/hostproc/ -v /sys/fs/cgroup:/sys/fs/cgroup  -v /var/log:/var/log -v /tmp:/tmp -v /run:/run -v /var/lib/docker/devicemapper/metadata/:/var/lib/docker/devicemapper/metadata/ -v /dev/:/dev/ --env container=docker --net=host --cap-add=SYS_ADMIN --ipc=host IMAGE"
+
+ADD image-scanner.py /usr/bin/image-scanner
+RUN chmod a+x /usr/bin/image-scanner
+#ADD dist_breakup.py /usr/binl/
+ADD serv.py docker_mount.py reporter.py dist_breakup.py applicationconfiguration.py scan.py /usr/lib/python2.7/site-packages/
+#ADD dist_breakup.py /usr/lib/python2.7/site-packages/
+#ADD applicationconfiguration.py /usr/lib/python2.7/site-packages/
+#ADD scan.py /usr/lib/python2.7/site-packages/
+
+RUN echo 'PS1="[image-scanner]#  "' > /etc/profile.d/ps1.sh
+
+CMD /bin/bash

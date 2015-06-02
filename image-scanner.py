@@ -33,7 +33,7 @@ from reporter import Reporter
 from scan import Scan
 from docker_mount import DockerMount, DockerMountError
 import subprocess
-
+import psutil
 
 class Singleton(object):
     _instance = None
@@ -108,8 +108,12 @@ class ContainerSearch(object):
 
 
 class Worker(object):
+
+    min_procs = 2
+    max_procs = 4
+
     def __init__(self, args):
-        self.procs = args.number
+        self.procs = self.set_procs(args.number)
         self.ac = ApplicationConfiguration(parserargs=args)
         self.cs = ContainerSearch()
         self.output = Reporter()
@@ -117,6 +121,16 @@ class Worker(object):
                                      "com.redhat.rhsa-all.xml")
         self.cve_file_bz = os.path.join(self.ac.workdir,
                                         "com.redhat.rhsa-all.xml.bz2")
+    def set_procs(self, number):
+
+        numThreads = psutil.NUM_CPUS if number is None else number
+
+        if numThreads < self.min_procs:
+            return self.min_procs
+        elif numThreads < self.max_procs:
+            return numThreads
+        else:
+            return self.max_procs
 
     def _get_cids_for_image(self, cs, image):
         cids = []
@@ -351,7 +365,7 @@ group.add_argument('--allcontainers', help='search all containers',
                    default=False, action='store_true')
 group.add_argument('-i', '--images', help='image to search', action='append')
 parser.add_argument('-n', '--number', help='number of processors to use',
-                    type=int, default=2)
+                    type=int, default=None)
 parser.add_argument('-l', '--logfile', help='logfile to use',
                     default="/tmp/openscap.log")
 parser.add_argument('-r', '--reportdir', help='directory to store reports',
@@ -367,7 +381,6 @@ group.add_argument('--stopweb', default=False, help='Stop the web backend',
                    action='store_true')
 
 args = parser.parse_args()
-
 
 if len(sys.argv) == 1:
     parser.print_help()

@@ -115,7 +115,9 @@ class Worker(object):
     max_procs = 4
 
     def __init__(self, args):
-        self.procs = self.set_procs(args.number)
+        self.args = args
+        if not args.startweb and not args.stopweb:
+            self.procs = self.set_procs(args.number)
         self.ac = ApplicationConfiguration(parserargs=args)
         self.cs = ContainerSearch()
         self.output = Reporter()
@@ -129,16 +131,18 @@ class Worker(object):
         numThreads = psutil.NUM_CPUS if number is None else number
 
         if numThreads < self.min_procs:
-            print "The image-scanner requires --number to be a minimum of "\
-                  "{0}. Setting --number to {1}".format(self.min_procs,
-                                                        self.min_procs)
+            if self.args.number is not None:
+                print "The image-scanner requires --number to be a minimum " \
+                      "of {0}. Setting --number to {1}".format(self.min_procs,
+                                                               self.min_procs)
             return self.min_procs
-        elif numThreads < self.max_procs:
+        elif numThreads <= self.max_procs:
             return numThreads
         else:
-            print "Due to docker issues, we limit the max number of threads "\
-                  "to {0}. Setting --number to {1}".format(self.max_procs,
-                                                           self.max_procs)
+            if self.args.number is not None:
+                print "Due to docker issues, we limit the max number "\
+                      "of threads to {0}. Setting --number to "\
+                      "{1}".format(self.max_procs, self.max_procs)
             return self.max_procs
 
     def _get_cids_for_image(self, cs, image):

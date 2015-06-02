@@ -31,7 +31,6 @@ from applicationconfiguration import ApplicationConfiguration
 from reporter import Reporter
 from scan import Scan
 from docker_mount import DockerMount, DockerMountError
-import serv
 import subprocess
 
 
@@ -287,15 +286,20 @@ class Worker(object):
 
     def start_web(self, workdir):
         report_dir = os.path.join(workdir, "openscap_reports")
-        if not os.path.exists(report_dir):
-            os.mkdir(report_dir)
-        serv.NodeCherryServer(workdir)
+        cmd = ['uwsgi', '--plugin', 'python,http', '--http-socket', ':9090', '--check-static', report_dir, '--static-index', 'summary.html', '--wsgi-file', 'serv.py', '--daemonize', os.path.join(workdir, "uwsgi.log")]
+        p = threading.Thread(target=subprocess.call, args=(cmd,))
+        p.daemon = True
+        p.start()
+        #if not os.path.exists(report_dir):
+        #    os.mkdir(report_dir)
+        #threading.Thread.
+        #serv.NodeCherryServer(workdir)
 
     def stop_web(self):
         import requests
         stop = requests.Session()
         try:
-            stop.get('http://localhost:8001/stop')
+            stop.get('http://localhost:9090/serv')
         except requests.exceptions.ConnectionError:
             pass
 

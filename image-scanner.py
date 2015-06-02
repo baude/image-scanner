@@ -26,6 +26,7 @@ import threading
 import logging
 import sys
 import time
+import signal
 from dist_breakup import CVEParse
 from applicationconfiguration import ApplicationConfiguration
 from reporter import Reporter
@@ -218,6 +219,7 @@ class Worker(object):
 
         logging.info("Number of containers to scan: {0}".format(len(threads)))
         total_images = len(threads)
+        signal.signal(signal.SIGINT, self.signal_handler)
         self.threads_complete = 0
         print ""
         while len(threads) > 0:
@@ -243,21 +245,27 @@ class Worker(object):
                                  int(complete), int(total)))
         sys.stdout.flush()
 
+    def signal_handler(self, signal, frame):
+        print "\n\nExiting..."
+        sys.exit(0)
+
     def search_containers(self, image, cids, output):
         f = Scan(image, cids, output)
-        if f.get_release():
+        try:
+            if f.get_release():
 
-            t = timeit.Timer(f.scan).timeit(number=1)
-            logging.debug("Scanned chroot for image {0}"
-                          " completed in {1} seconds"
-                          .format(image, t))
+                t = timeit.Timer(f.scan).timeit(number=1)
+                logging.debug("Scanned chroot for image {0}"
+                              " completed in {1} seconds"
+                              .format(image, t))
 
-            timeit.Timer(f.report_results).timeit(number=1)
-        else:
-            # This is not a RHEL image or container
-            f._report_not_rhel(image)
+                timeit.Timer(f.report_results).timeit(number=1)
+            else:
+                # This is not a RHEL image or container
+                f._report_not_rhel(image)
+        except subprocess.CalledProcessError:
+            pass
 
-        # t = timeit.Timer(f.clean_up_chroot).timeit(number=1)
         start = time.time()
         f.DM.cleanup(f.dm_results)
         logging.debug("Removing temporary chroot for image {0} completed in"
@@ -281,19 +289,17 @@ class Worker(object):
             print "Unable to associate {0} with any image " \
                   "or container".format(image)
             sys.exit(1)
-        print work_list
         return work_list
 
     def start_web(self, workdir):
         report_dir = os.path.join(workdir, "openscap_reports")
-        cmd = ['uwsgi', '--plugin', 'python,http', '--http-socket', ':9090', '--check-static', report_dir, '--static-index', 'summary.html', '--wsgi-file', 'serv.py', '--daemonize', os.path.join(workdir, "uwsgi.log")]
+        cmd = ['uwsgi', '--plugin', 'python,http', '--http-socket', ':9090',
+               '--check-static', report_dir, '--static-index', 'summary.html',
+               '--wsgi-file', 'serv.py', '--daemonize',
+               os.path.join(workdir, "uwsgi.log")]
         p = threading.Thread(target=subprocess.call, args=(cmd,))
         p.daemon = True
         p.start()
-        #if not os.path.exists(report_dir):
-        #    os.mkdir(report_dir)
-        #threading.Thread.
-        #serv.NodeCherryServer(workdir)
 
     def stop_web(self):
         import requests
@@ -309,7 +315,7 @@ class Worker(object):
                             format='%(asctime)s %(levelname)-8s %(message)s',
                             datefmt='%m-%d %H:%M', level=logging.DEBUG)
         if args.startweb:
-            self.start_web(args.workdir) 
+            self.start_web(args.workdir)
         if args.stopweb:
             self.stop_web()
         if args.onlyactive:
@@ -355,12 +361,10 @@ parser.add_argument('-w', '--workdir', help='workdir to use, defaults to /tmp',
                     default="/tmp")
 parser.add_argument('--nocache', default=False, help='Do not cache anything',
                     action='store_true')
-
 group.add_argument('--startweb', default=False, help='Start a web backend',
-                    action='store_true')
-
+                   action='store_true')
 group.add_argument('--stopweb', default=False, help='Stop the web backend',
-                    action='store_true')
+                   action='store_true')
 
 args = parser.parse_args()
 

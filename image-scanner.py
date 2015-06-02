@@ -35,6 +35,7 @@ from docker_mount import DockerMount, DockerMountError
 import subprocess
 import psutil
 
+
 class Singleton(object):
     _instance = None
 
@@ -54,6 +55,7 @@ class Singleton(object):
 
 
 class ContainerSearch(object):
+
     def __init__(self):
         if not os.path.exists("/var/run/docker.pid"):
             print "Error: Docker does not appear to be running"
@@ -121,15 +123,22 @@ class Worker(object):
                                      "com.redhat.rhsa-all.xml")
         self.cve_file_bz = os.path.join(self.ac.workdir,
                                         "com.redhat.rhsa-all.xml.bz2")
+
     def set_procs(self, number):
 
         numThreads = psutil.NUM_CPUS if number is None else number
 
         if numThreads < self.min_procs:
+            print "The image-scanner requires --number to be a minimum of "\
+                  "{0}. Setting --number to {1}".format(self.min_procs,
+                                                        self.min_procs)
             return self.min_procs
         elif numThreads < self.max_procs:
             return numThreads
         else:
+            print "Due to docker issues, we limit the max number of threads "\
+                  "to {0}. Setting --number to {1}".format(self.max_procs,
+                                                           self.max_procs)
             return self.max_procs
 
     def _get_cids_for_image(self, cs, image):
@@ -206,7 +215,7 @@ class Worker(object):
         cp = CVEParse(self.ac.workdir)
         if (not os.path.exists(cp.xmlf)) or \
                 (self.ac.nocache) or \
-                ((time.time() - os.path.getmtime(cp.xmlf)) / (60**2) > 12):
+                ((time.time() - os.path.getmtime(cp.xmlf)) / (60 ** 2) > 12):
             # If we find a tarball of the dist break outs and
             # it is less than 12 hours old, use it to speed things
             # up
@@ -254,8 +263,8 @@ class Worker(object):
 
     def _progress(self, complete, total):
         sys.stdout.write("\r[{0:20s}] {1}%    {2}/{3}"
-                         .format('#' * int(complete/total * 20),
-                                 int(complete/total * 100),
+                         .format('#' * int(complete / total * 20),
+                                 int(complete / total * 100),
                                  int(complete), int(total)))
         sys.stdout.flush()
 
@@ -350,7 +359,7 @@ class Worker(object):
             unit = "seconds"
         else:
             unit = "minutes"
-            duration = duration/60
+            duration = duration / 60
 
         logging.info("Completed entire scan in {0} {1}".format(duration, unit))
 

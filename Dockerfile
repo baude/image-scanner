@@ -7,7 +7,7 @@ RUN yum -y update && yum -y install http://mirror.nexcess.net/epel/7/x86_64/e/ep
 # Debug only
 #RUN yum -y install vim strace file less top
 
-RUN yum -y install vim docker python-docker openscap-scanner tar python-cherrypy uwsgi-plugin-python uwsgi-router-http uwsgi-plugin-common python-psutil && yum clean all
+RUN yum -y install vim docker python-docker openscap-scanner tar python-cherrypy uwsgi-plugin-python uwsgi-router-http uwsgi-plugin-common python-psutil findutils && yum clean all
 
 
 LABEL Version=1.0

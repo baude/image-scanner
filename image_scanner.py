@@ -161,7 +161,7 @@ class Worker(object):
         url = ("http://www.redhat.com/security/data/oval/"
                "com.redhat.rhsa-all.xml.bz2")
 
-        print "Obtaining CVE file data from {0}".format(url)
+        self.ac._print("Obtaining CVE file data from {0}".format(url))
 
         bar = urllib2.Request(url, "", hdr)
         resp = urllib2.urlopen(bar)
@@ -227,15 +227,15 @@ class Worker(object):
             self.get_cve_data()
             self.extract_cve_data()
 
-            print "Splitting master XML file into distribution " \
-                  "specific XML files"
+            self.ac._print("Splitting master XML file into distribution "
+                           "specific XML files")
 
             # Run dist breakout to make dist specific XML
             # files
             t = timeit.Timer(cp.parse_for_platform).timeit(number=1)
             logging.debug("Parsed distribution breakup in "
                           "{0} seconds".format(t))
-        print "\nBegin processing\n"
+        self.ac._print("\nBegin processing\n")
         threads = []
 
         for image in image_list:
@@ -246,31 +246,35 @@ class Worker(object):
 
         logging.info("Number of containers to scan: {0}".format(len(threads)))
         total_images = len(threads)
-        signal.signal(signal.SIGINT, self.signal_handler)
+        if isinstance(threading.current_thread(), threading._MainThread):
+            signal.signal(signal.SIGINT, self.signal_handler)
         self.threads_complete = 0
-        print ""
+        self.ac._print("")
         while len(threads) > 0:
             if len(threading.enumerate()) < self.procs:
                 new_thread = threads.pop()
                 new_thread.start()
                 self._progress(float(self.threads_complete),
                                float(total_images))
-
-        while len(threading.enumerate()) > 1:
+        if self.ac.api:
+            exit_thread_count = 2
+        else:
+            exit_thread_count = 1
+        while len(threading.enumerate()) > exit_thread_count:
             self._progress(float(self.threads_complete), float(total_images))
             time.sleep(1)
             pass
-
         self._progress(float(self.threads_complete), float(total_images))
-        print "\n" * 2
+        self.ac._print("\n" * 2)
         self.output.report_summary()
 
     def _progress(self, complete, total):
-        sys.stdout.write("\r[{0:20s}] {1}%    {2}/{3}"
-                         .format('#' * int(complete / total * 20),
-                                 int(complete / total * 100),
-                                 int(complete), int(total)))
-        sys.stdout.flush()
+        if not self.ac.api:
+            sys.stdout.write("\r[{0:20s}] {1}%    {2}/{3}"
+                             .format('#' * int(complete / total * 20),
+                                     int(complete / total * 100),
+                                     int(complete), int(total)))
+            sys.stdout.flush()
 
     def signal_handler(self, signal, frame):
         print "\n\nExiting..."
@@ -338,22 +342,22 @@ class Worker(object):
 
     def start_application(self):
         start_time = time.time()
-        logging.basicConfig(filename=args.logfile,
+        logging.basicConfig(filename=self.args.logfile,
                             format='%(asctime)s %(levelname)-8s %(message)s',
                             datefmt='%m-%d %H:%M', level=logging.DEBUG)
-        if args.startweb:
-            self.start_web(args.workdir)
-        if args.stopweb:
+        if self.args.startweb:
+            self.start_web(self.args.workdir)
+        if self.args.stopweb:
             self.stop_web()
-        if args.onlyactive:
+        if self.args.onlyactive:
             self.onlyactive()
-        if args.allcontainers:
+        if self.args.allcontainers:
             self.allcontainers()
-        if args.allimages:
+        if self.args.allimages:
             self.allimages()
-        if args.images:
+        if self.args.images:
             # Check to make sure we have  valid input
-            image_list = self._check_input(args.images)
+            image_list = self._check_input(self.args.images)
             self.list_of_images(image_list)
 
         end_time = time.time()
@@ -366,38 +370,45 @@ class Worker(object):
             duration = duration / 60
 
         logging.info("Completed entire scan in {0} {1}".format(duration, unit))
+        if self.ac.api:
+            return self.ac.return_json
 
-parser = argparse.ArgumentParser(description='Scan Utility for Containers')
-group = parser.add_mutually_exclusive_group()
 
-group.add_argument('--allimages', help='search all images', default=False,
-                   action='store_true')
-group.add_argument('--onlyactive', help='search only active containers',
-                   default=False, action='store_true')
-group.add_argument('--allcontainers', help='search all containers',
-                   default=False, action='store_true')
-group.add_argument('-i', '--images', help='image to search', action='append')
-parser.add_argument('-n', '--number', help='number of processors to use',
-                    type=int, default=None)
-parser.add_argument('-l', '--logfile', help='logfile to use',
-                    default="/tmp/openscap.log")
-parser.add_argument('-r', '--reportdir', help='directory to store reports',
-                    default="/tmp")
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Scan Utility for Containers')
+    group = parser.add_mutually_exclusive_group()
 
-parser.add_argument('-w', '--workdir', help='workdir to use, defaults to /tmp',
-                    default="/tmp")
-parser.add_argument('--nocache', default=False, help='Do not cache anything',
-                    action='store_true')
-group.add_argument('--startweb', default=False, help='Start a web backend',
-                   action='store_true')
-group.add_argument('--stopweb', default=False, help='Stop the web backend',
-                   action='store_true')
+    group.add_argument('--allimages', help='search all images', default=False,
+                       action='store_true')
+    group.add_argument('--onlyactive', help='search only active containers',
+                       default=False, action='store_true')
+    group.add_argument('--allcontainers', help='search all containers',
+                       default=False, action='store_true')
+    group.add_argument('-i', '--images', help='image to search',
+                       action='append')
+    parser.add_argument('-n', '--number', help='number of processors to use',
+                        type=int, default=None)
+    parser.add_argument('-l', '--logfile', help='logfile to use',
+                        default="/tmp/openscap.log")
+    parser.add_argument('-r', '--reportdir', help='directory to store reports',
+                        default="/tmp")
 
-args = parser.parse_args()
+    parser.add_argument('-w', '--workdir', help='workdir to use, defaults "\
+                        "to /tmp',
+                        default="/tmp")
+    parser.add_argument('--nocache', default=False, help='Do not cache "\
+                        "anything',
+                        action='store_true')
+    group.add_argument('--startweb', default=False, help='Start a web backend',
+                       action='store_true')
+    group.add_argument('--stopweb', default=False, help='Stop the web backend',
+                       action='store_true')
 
-if len(sys.argv) == 1:
-    parser.print_help()
-    sys.exit(1)
+    args = parser.parse_args()
 
-work = Worker(args)
-work.start_application()
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
+
+    work = Worker(args)
+    work.start_application()

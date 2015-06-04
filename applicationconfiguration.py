@@ -47,8 +47,15 @@ class ApplicationConfiguration(Singleton):
         self.number = parserargs.number
         self.reportdir = parserargs.reportdir
         self.nocache = parserargs.nocache
+        self.url_root = parserargs.url_root
         self.cons = None
         self.images = None
+        self.api = False if not hasattr(parserargs, 'api') else bool(parserargs.api)
+        self.return_json = []
+
+    def _print(self, msg):
+        if not self.api:
+            print msg
 
     def __init__(self, parserargs=None):
         ''' init '''

@@ -45,25 +45,27 @@ class Reporter(object):
         to stdout when running the image-scanner
         '''
         self.appc._print("Summary:")
-        baseurl = urlparse.urljoin(self.appc.url_root, os.path.basename(self.report_dir))
-        print baseurl
+        if self.appc.api:
+            baseurl = urlparse.urljoin(self.appc.url_root, os.path.basename(self.report_dir))
         for image in self.list_of_outputs:
             short_cid_list = []
             dtype = self._get_dtype(image.iid)
             self.appc._print("{0}{1}: {2}".format(" " * 5, dtype, image.iid))
-            image_json = {image.iid: {}}
-            image_json[image.iid]['http_url'] = \
-                baseurl + "/{0}.html".format(image.iid)
+            if self.appc.api:
+                image_json = {image.iid: {}}
+                image_json[image.iid]['http_url'] = \
+                    baseurl + "/{0}.html".format(image.iid)
 
-            image_json[image.iid]['xml_url'] = \
-                baseurl + "/{0}.xml".format(image.iid)
+                image_json[image.iid]['xml_url'] = \
+                    baseurl + "/{0}.xml".format(image.iid)
 
             if image.msg is None:
                 html_p = "<tr><td><b>{0}</b>:<td colspan=2><a href='{1}.html'>{2}</a></td></tr>".format(dtype, image.iid, image.iid)
                 self.add_content(html_p) 
                 for cid in image.cid:
                     short_cid_list.append(cid[:12])
-                image_json[image.iid]['cids'] = short_cid_list
+                if self.appc.api:
+                    image_json[image.iid]['cids'] = short_cid_list
                 self.appc._print("{0}OS: {1}".format(" " * 5, image.os.rstrip()))
                 html_p = "<tr><td>{0}</td><td><b>OS:</b></td><td>{1}</td></tr>".format(" " * 5, image.os.rstrip())
                 self.add_content(html_p)
@@ -86,10 +88,11 @@ class Reporter(object):
                                          image.sevs['Moderate'],
                                          image.sevs['Low'])
                 self.add_content(html_p)
-                image_json[image.iid]['critical'] = image.sevs['Critical']
-                image_json[image.iid]['important'] = image.sevs['Important']
-                image_json[image.iid]['moderate'] = image.sevs['Moderate']
-                image_json[image.iid]['low'] = image.sevs['Low']
+                if self.appc.api:
+                    image_json[image.iid]['critical'] = image.sevs['Critical']
+                    image_json[image.iid]['important'] = image.sevs['Important']
+                    image_json[image.iid]['moderate'] = image.sevs['Moderate']
+                    image_json[image.iid]['low'] = image.sevs['Low']
                 self.appc._print("")
             else:
                 html_p = "<tr><td><b>{0}</b>:<td colspan=2>{1}</td></tr>".format(dtype, image.iid)
@@ -97,11 +100,13 @@ class Reporter(object):
                 self.appc._print("{0}Results: {1}".format(" " * 5, image.msg))
                 html_p =  "<tr><td>{0}</td><td><b>Results</b>:</td><td>{1}</td></tr>".format(" " * 5, image.msg)
                 self.add_content(html_p)
-                image_json[image.iid]['msg'] = image.msg
+                if self.appc.api:
+                    image_json[image.iid]['msg'] = image.msg
                 self.appc._print("")
             html_p = "<tr><td colspan=3> </td></tr>"
             self.add_content(html_p)
-            self.appc.return_json.append(image_json)
+            if self.appc.api:
+                self.appc.return_json.append(image_json)
         report_files = []
         for image in self.list_of_outputs:
             if image.msg is None:

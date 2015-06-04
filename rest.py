@@ -4,6 +4,7 @@ import collections
 from flask import make_response, jsonify, request, send_from_directory
 from image_scanner import Worker
 import docker
+import argparse
 
 app = flask.Flask(__name__, static_path='/tmp/')
 # app.config.update(SERVER_NAME='127.0.0.1:5001')
@@ -104,4 +105,10 @@ def send_js(path):
     return send_from_directory('/tmp/openscap_reports', path)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    parser = argparse.ArgumentParser(description='Scan Utility for Containers')
+    parser.add_argument('-i', '--hostip', help='host IP to run on',
+                        default="127.0.0.1")
+    parser.add_argument('-p', '--port', help='port to run on', default="5000")
+
+    args = parser.parse_args()
+    app.run(debug=True, host=args.hostip, port=int(args.port))

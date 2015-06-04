@@ -82,10 +82,9 @@ class DockerMount(object):
                           'iid', 'dtype'])
         # Check if we have the back-end
         if 'GraphDriver' in image_info:
-
             # Breaking out to comply with Pep8
             thin_device_id = image_info['GraphDriver']['Data'][0][1]
-            thin_device_size = (image_info['GraphDriver']['Data'][1][1])/512
+            thin_device_size = image_info['GraphDriver']['Data'][1][1]
             iid = image_info['Id']
             graphdriver = image_info['GraphDriver']['Name']
 
@@ -96,7 +95,7 @@ class DockerMount(object):
 
         image_ret = image_tuple(graphdriver=graphdriver,
                                 thin_device_id=thin_device_id,
-                                thin_device_size=thin_device_size/512,
+                                thin_device_size=int(thin_device_size)/512,
                                 iid=iid,
                                 dtype=dtype)
         return image_ret

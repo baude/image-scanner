@@ -85,7 +85,7 @@ class DockerMount(object):
 
             # Breaking out to comply with Pep8
             thin_device_id = image_info['GraphDriver']['Data'][0][1]
-            thin_device_size = image_info['GraphDriver']['Data'][1][1]
+            thin_device_size = (image_info['GraphDriver']['Data'][1][1])/512
             iid = image_info['Id']
             graphdriver = image_info['GraphDriver']['Name']
 
@@ -96,7 +96,7 @@ class DockerMount(object):
 
         image_ret = image_tuple(graphdriver=graphdriver,
                                 thin_device_id=thin_device_id,
-                                thin_device_size=thin_device_size,
+                                thin_device_size=thin_device_size/512,
                                 iid=iid,
                                 dtype=dtype)
         return image_ret

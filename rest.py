@@ -3,10 +3,10 @@ import os
 import collections
 from flask import make_response, jsonify, request, send_from_directory
 from image_scanner import Worker
+import docker
 
 app = flask.Flask(__name__, static_path='/tmp/')
-#app = flask.Flask(__name__)
-#app.config.update(SERVER_NAME='127.0.0.1:5001')
+# app.config.update(SERVER_NAME='127.0.0.1:5001')
 
 scan_args = ['allcontainers', 'allimages', 'images', 'logfile', 'nocache',
              'number', 'onlyactive', 'reportdir', 'startweb', 'stopweb',
@@ -14,6 +14,9 @@ scan_args = ['allcontainers', 'allimages', 'images', 'logfile', 'nocache',
 scan_tuple = collections.namedtuple('Namespace', scan_args)
 
 rest_path = '/image-scanner/api/'
+
+connection = docker.Client(base_url='unix://var/run/docker.sock',
+                           timeout=10)
 
 
 def create_tuple(in_args, url_root):
@@ -36,7 +39,7 @@ def create_tuple(in_args, url_root):
                             int(in_args.get('number')),
                             onlyactive=False if in_args.get('onlyactive') is
                             None else in_args.get('onlyactive'),
-                            reportdir="/tmp" if in_args.get('reportdir') is 
+                            reportdir="/tmp" if in_args.get('reportdir') is
                             None else in_args.get('reportdir'),
                             workdir="/tmp" if in_args.get('workdir') is None
                             else in_args.get('workdir'),
@@ -46,23 +49,54 @@ def create_tuple(in_args, url_root):
                             url_root=url_root)
     return _tmp_tuple
 
+
 @app.route(os.path.join(rest_path, "test"), methods=['GET'])
 def get_tasks():
     print request.url_root
     print request.remote_addr
     return "hello"
 
-@app.route(os.path.join(rest_path, "scan"), methods=['GET', 'POST', 'PUT'])
+
+@app.route(os.path.join(rest_path, "containers"), methods=['GET'])
+def containers():
+    global connection
+    cons = {'all_containers': connection.containers(all=True)}
+    return jsonify(cons)
+
+
+@app.route(os.path.join(rest_path, "images"), methods=['GET'])
+def images():
+    global connection
+    images = {'all_images': connection.images(all=True)}
+    return jsonify(images)
+
+
+@app.route(os.path.join(rest_path, "inspect_container"), methods=['GET'])
+def inspect_container():
+    global connection
+    inspect_data = connection.inspect_container(request.json['cid'])
+    return jsonify(inspect_data)
+
+
+@app.route(os.path.join(rest_path, "inspect_image"), methods=['GET'])
+def inspect_image():
+    global connection
+    inspect_data = connection.inspect_image(request.json['iid'])
+    return jsonify(inspect_data)
+
+
+@app.route(os.path.join(rest_path, "scan"), methods=['GET'])
 def scan():
-    print request.json
     arg_tup = create_tuple(request.json, request.url_root)
     worker = Worker(arg_tup)
     return_json = worker.start_application()
     return jsonify({'results': return_json})
 
+
 @app.errorhandler(404)
 def not_found(error):
     return flask.make_response(flask.jsonify({'error': 'Not found'}), 404)
+
 
 @app.route('/openscap_reports/<path:path>')
 def send_js(path):

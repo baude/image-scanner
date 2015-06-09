@@ -27,8 +27,9 @@ from image_scanner import Worker
 import docker
 import argparse
 import sys
+import ConfigParser
 
-flask_app = flask.Flask(__name__, static_path='/tmp/')
+application = flask.Flask(__name__, static_path='/tmp/')
 # app.config.update(SERVER_NAME='127.0.0.1:5001')
 
 scan_args = ['allcontainers', 'allimages', 'images', 'logfile', 'nocache',
@@ -39,14 +40,14 @@ scan_tuple = collections.namedtuple('Namespace', scan_args)
 
 rest_path = '/image-scanner/api/'
 
-dockerHost = "unix://var/run/docker.sock"
-connection = docker.Client(base_url=dockerHost, timeout=10)
+docker_host = "unix://var/run/docker.sock"
+connection = docker.Client(base_url=docker_host, timeout=10)
 
 
 def create_tuple(in_args, url_root):
     global scan_args
     global scan_tuple
-    global dockerHost
+    global docker_host
     _tmp_tuple = scan_tuple(allcontainers=False if
                             in_args.get('allcontainers') is None else
                             in_args.get('allcontainers'),
@@ -71,17 +72,17 @@ def create_tuple(in_args, url_root):
                             startweb=False,
                             api=True,
                             url_root=url_root,
-                            host=dockerHost)
+                            host=docker_host)
     return _tmp_tuple
 
 
-@flask_app.route(os.path.join(rest_path, "test"), methods=['GET'])
+@application.route(os.path.join(rest_path, "test"), methods=['GET'])
 def get_tasks():
     ''' Test method'''
     return "hello"
 
 
-@flask_app.route(os.path.join(rest_path, "containers"), methods=['GET'])
+@application.route(os.path.join(rest_path, "containers"), methods=['GET'])
 def containers():
     '''Returns all containers'''
     global connection
@@ -89,7 +90,7 @@ def containers():
     return jsonify(cons)
 
 
-@flask_app.route(os.path.join(rest_path, "images"), methods=['GET'])
+@application.route(os.path.join(rest_path, "images"), methods=['GET'])
 def images():
     '''Returns all images'''
     global connection
@@ -97,7 +98,7 @@ def images():
     return jsonify(images)
 
 
-@flask_app.route(os.path.join(rest_path, "inspect_container"), methods=['GET'])
+@application.route(os.path.join(rest_path, "inspect_container"), methods=['GET'])
 def inspect_container():
     ''' Returns inspect data of a container'''
     global connection
@@ -105,7 +106,7 @@ def inspect_container():
     return jsonify(inspect_data)
 
 
-@flask_app.route(os.path.join(rest_path, "inspect_image"), methods=['GET'])
+@application.route(os.path.join(rest_path, "inspect_image"), methods=['GET'])
 def inspect_image():
     ''' Returns inspect data of an image'''
     global connection
@@ -113,7 +114,7 @@ def inspect_image():
     return jsonify(inspect_data)
 
 
-@flask_app.route(os.path.join(rest_path, "scan"), methods=['GET'])
+@application.route(os.path.join(rest_path, "scan"), methods=['GET'])
 def scan():
     ''' Kicks off a scan via REST '''
     arg_tup = create_tuple(request.json, request.url_root)
@@ -122,30 +123,53 @@ def scan():
     return jsonify({'results': return_json})
 
 
-@flask_app.errorhandler(404)
+@application.errorhandler(404)
 def not_found(error):
     ''' Error handler '''
     return flask.make_response(flask.jsonify({'error': 'Not found'}), 404)
 
 
-@flask_app.route('/openscap_reports/<path:path>')
+@application.route('/openscap_reports/<path:path>')
 def send_js(path):
     ''' Returns a file from the openscap_reports dir '''
     return send_from_directory('/tmp/openscap_reports', path)
 
 if __name__ == '__main__':
+    conf_file = "/etc/image-scanner/image-scanner.conf"
     parser = argparse.ArgumentParser(description='Scan Utility for Containers')
     parser.add_argument('-i', '--hostip', help='host IP to run on',
-                        default="127.0.0.1")
-    parser.add_argument('-p', '--port', help='port to run on', default="5000")
-    parser.add_argument('-H', '--host', default='unix://var/run/docker.sock',
+                        default=None)
+    parser.add_argument('-p', '--port', help='port to run on', default=None)
+    parser.add_argument('-d', '--dockerhost', default=None,
                         help='Specify docker host socket to use')
 
     args = parser.parse_args()
 
+    config = ConfigParser.RawConfigParser()
+    # Checking inputs which can come from command_line,
+    # defaults, or config_file
+
     try:
-        dockerHost = args.host
-        connection = docker.Client(base_url=dockerHost, timeout=10)
+        # Check if we have a conf file
+        config.read(conf_file)
+        # If we find a conf-file, override it if passed via command line
+        # else use the conf-file
+        port = args.port if args.port is not None else \
+            config.get('main', 'port')
+        host = args.hostip if args.hostip is not None else \
+            config.get('main', 'hostip')
+        dockerhost = args.dockerhost if args.dockerhost is not None else \
+            config.get('main', 'dockerhost')
+    except ConfigParser.NoSectionError as conf_error:
+        # No conf file found, resort to checking command line, then defaults
+        port = args.port if args.port is not None else 5001
+        host = args.hostip if args.hostip is not None else "127.0.0.1"
+        dockerhost = args.dockerhost if args.dockerhost is not None else \
+            docker_host
+
+    try:
+        docker_host = args.dockerhost
+        connection = docker.Client(base_url=docker_host, timeout=10)
         if not connection.ping():
             raise(Exception)
     except Exception, err:
@@ -153,4 +177,5 @@ if __name__ == '__main__':
               'Is \'docker -d\' running on this host?'
         sys.exit(1)
 
-    flask_app.run(debug=True, host=args.hostip, port=int(args.port))
+
+    application.run(debug=True, host=host, port=int(port))

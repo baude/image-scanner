@@ -18,6 +18,10 @@
 
 ''' Class to handle references '''
 
+import docker
+import sys
+
+
 class Singleton(object):
     ''' Singleton class to pass references'''
     _instance = None
@@ -47,12 +51,29 @@ class ApplicationConfiguration(Singleton):
         self.number = parserargs.number
         self.reportdir = parserargs.reportdir
         self.nocache = parserargs.nocache
-        self.api = False if not hasattr(parserargs, 'api') else bool(parserargs.api)
+        if not hasattr(parserargs, 'api'):
+            self.api = False
+        else:
+            self.api = bool(parserargs.api)
         if self.api:
             self.url_root = parserargs.url_root
         self.cons = None
         self.images = None
         self.return_json = []
+        self.conn = self.ValidateHost(parserargs.host)
+
+    def ValidateHost(self, host):
+
+        try:
+            client = docker.Client(base_url=host, timeout=10)
+            if not client.ping():
+                raise(Exception)
+        except Exception, err:
+            print 'Cannot connect to the Docker daemon. ' \
+                  'Is \'docker -d\' running on this host?'
+            sys.exit(1)
+
+        return client
 
     def _print(self, msg):
         if not self.api:

@@ -16,7 +16,6 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
-
 """Docker Mount Python API"""
 
 import docker
@@ -38,16 +37,11 @@ class DockerMount(object):
                                      'mount_path', 'thin_dev_name',
                                      'dtype'])
 
-    def __init__(self, mnt_point=None, override=False):
+    def __init__(self, dockerclient, mnt_point=None, override=False):
+        self.conn = dockerclient
         self.override = override
         self.mnt_point = mnt_point
         self.dev_name = None
-        # Check if docker is running
-        if not os.path.exists("/var/run/docker.pid"):
-            raise DockerMountError("Docker does not appear to be running")
-
-        self.conn = docker.Client(base_url='unix://var/run/docker.sock',
-                                  timeout=10)
         self.docker_info = self.conn.info()
         self.driver = self.docker_info['Driver']
         self.return_tuple = collections.namedtuple('returns',
@@ -80,8 +74,10 @@ class DockerMount(object):
         image_tuple = collections.namedtuple(
             'ImageInfo', ['graphdriver', 'thin_device_id', 'thin_device_size',
                           'iid', 'dtype'])
+
         # Check if we have the back-end
         if 'GraphDriver' in image_info:
+
             # Breaking out to comply with Pep8
             thin_device_id = image_info['GraphDriver']['Data'][0][1]
             thin_device_size = image_info['GraphDriver']['Data'][1][1]

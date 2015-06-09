@@ -57,19 +57,14 @@ class Singleton(object):
 class ContainerSearch(object):
 
     def __init__(self):
-        if not os.path.exists("/var/run/docker.pid"):
-            print "Error: Docker does not appear to be running"
-            sys.exit(0)
-        self.c = docker.Client(base_url='unix://var/run/docker.sock',
-                               timeout=10)
-        self.cons = self.c.containers(all=True)
-        self.active_containers = self.c.containers(all=False)
-        self.images = self.c.images(name=None,
-                                    quiet=False, all=True, viz=False)
+        self.ac = ApplicationConfiguration()
+        self.cons = self.ac.conn.containers(all=True)
+        self.active_containers = self.ac.conn.containers(all=False)
+        self.images = self.ac.conn.images(name=None, quiet=False,
+                                          all=True, viz=False)
         self.imagelist = self._returnImageList(self.images)
         self.fcons = self._formatCons(self.cons)
         self.fcons_active = self._formatCons(self.active_containers)
-        self.ac = ApplicationConfiguration()
         self.ac.fcons = self.fcons
         self.ac.cons = self.cons
         self.ac.images = self.images
@@ -99,7 +94,7 @@ class ContainerSearch(object):
         fcons = {}
         for c in cons:
             cid = c['Id']
-            inspect = self.c.inspect_container(cid)
+            inspect = self.ac.conn.inspect_container(cid)
             iid = inspect['Image']
             run = inspect['State']['Running']
             if iid not in fcons:
@@ -309,7 +304,7 @@ class Worker(object):
         container-names and returns a list of images ids and
         container ids
         '''
-        dm = DockerMount()
+        dm = DockerMount(dockerclient=self.ac.conn)
         work_list = []
         # verify
         try:
@@ -403,6 +398,8 @@ if __name__ == '__main__':
                        action='store_true')
     group.add_argument('--stopweb', default=False, help='Stop the web backend',
                        action='store_true')
+    parser.add_argument('-H', '--host', default='unix://var/run/docker.sock',
+                        help='Specify docker host socket to use')
 
     args = parser.parse_args()
 

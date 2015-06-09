@@ -26,24 +26,27 @@ from flask import jsonify, request, send_from_directory
 from image_scanner import Worker
 import docker
 import argparse
+import sys
 
 flask_app = flask.Flask(__name__, static_path='/tmp/')
 # app.config.update(SERVER_NAME='127.0.0.1:5001')
 
 scan_args = ['allcontainers', 'allimages', 'images', 'logfile', 'nocache',
              'number', 'onlyactive', 'reportdir', 'startweb', 'stopweb',
-             'workdir', 'api', 'url_root']
+             'workdir', 'api', 'url_root', 'host']
+
 scan_tuple = collections.namedtuple('Namespace', scan_args)
 
 rest_path = '/image-scanner/api/'
 
-connection = docker.Client(base_url='unix://var/run/docker.sock',
-                           timeout=10)
+dockerHost = "unix://var/run/docker.sock"
+connection = docker.Client(base_url=dockerHost, timeout=10)
 
 
 def create_tuple(in_args, url_root):
     global scan_args
     global scan_tuple
+    global dockerHost
     _tmp_tuple = scan_tuple(allcontainers=False if
                             in_args.get('allcontainers') is None else
                             in_args.get('allcontainers'),
@@ -67,7 +70,8 @@ def create_tuple(in_args, url_root):
                             stopweb=False,
                             startweb=False,
                             api=True,
-                            url_root=url_root)
+                            url_root=url_root,
+                            host=dockerHost)
     return _tmp_tuple
 
 
@@ -134,6 +138,19 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--hostip', help='host IP to run on',
                         default="127.0.0.1")
     parser.add_argument('-p', '--port', help='port to run on', default="5000")
+    parser.add_argument('-H', '--host', default='unix://var/run/docker.sock',
+                        help='Specify docker host socket to use')
 
     args = parser.parse_args()
+
+    try:
+        dockerHost = args.host
+        connection = docker.Client(base_url=dockerHost, timeout=10)
+        if not connection.ping():
+            raise(Exception)
+    except Exception, err:
+        print 'Cannot connect to the Docker daemon. ' \
+              'Is \'docker -d\' running on this host?'
+        sys.exit(1)
+
     flask_app.run(debug=True, host=args.hostip, port=int(args.port))

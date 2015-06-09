@@ -32,8 +32,6 @@ from docker_mount import DockerMount
 
 class Scan(object):
     def __init__(self, image_uuid, con_uuids, output):
-        self.c = docker.Client(base_url='unix://var/run/docker.sock',
-                               timeout=10)
         self.image_name = image_uuid
         self.ac = ApplicationConfiguration()
         self.tb_location = os.path.join(self.ac.workdir,
@@ -50,7 +48,7 @@ class Scan(object):
             os.mkdir(self.report_dir)
 
         start = time.time()
-        self.DM = DockerMount("/tmp")
+        self.DM = DockerMount(dockerclient=self.ac.conn, mnt_point="/tmp")
         self.dm_results = self.DM.mount(image_uuid)
         logging.debug("Created scanning chroot in {0}"
                       " seconds".format(time.time() - start))

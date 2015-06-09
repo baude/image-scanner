@@ -16,7 +16,7 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
-''' Usefull functions to parse openscap oval xml files'''
+'''Usefull functions to parse openscap oval xml files'''
 
 
 import xml.etree.ElementTree as ET
@@ -33,10 +33,12 @@ class ParseOvalXML(object):
     result_list = []
 
     def _get_root(self, result_file):
+        '''Returns an ET object for the input XML file'''
         result_tree = ET.parse(result_file)
         return result_tree.getroot()
 
     def _get_list_cve_def_ids(self, _root):
+        '''Returns a list of cve definition ids in the result file'''
         _def_id_list = []
         definitions = _root.findall("{http://oval.mitre.org/XMLSchema/"
                                     "oval-results-5}results/{http://oval.mitre"
@@ -49,6 +51,12 @@ class ParseOvalXML(object):
         return _def_id_list
 
     def _get_cve_def_info(self, _def_id_list, _root):
+        '''
+        Returns a list of tuples that contain information about the
+        cve themselves.  Currently return are: title, severity, ref_id
+        and ref_url for the cve and rhsa, the cve id, and description
+        '''
+
         cve_info_list = []
         for def_id in _def_id_list:
             oval_defs = _root.find("{http://oval.mitre.org/XMLSchema/oval-"
@@ -87,7 +95,20 @@ class ParseOvalXML(object):
 
         return cve_info_list
 
+    def get_cve_info(self, result_file):
+        '''
+        Wrapper function to return a list of tuples with
+        cve information from the xml input file
+        '''
+        _root = self._get_root(result_file)
+        _id_list = self._get_list_cve_def_ids(_root)
+        return self._get_cve_def_info(_id_list, _root)
+
     def summarize(self, cve_format_list):
+        '''
+        Helper function to parse a summarize from a list
+        of cve tuples
+        '''
         summary = {}
         for cve in cve_format_list:
             if cve.severity not in summary:
@@ -95,11 +116,10 @@ class ParseOvalXML(object):
             else:
                 summary[cve.severity]['num'] += 1
                 summary[cve.severity]['cves'].append([cve.cve])
+        return summary
 
 # FIXME
 # Would be nice to have the tuple or a summary function
-# that also associates things with docker information. For 
+# that also associates things with docker information. For
 # example, if the source was an image, list all the possible
 # impacted container IDs.
-
-

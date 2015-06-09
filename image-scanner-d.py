@@ -20,7 +20,8 @@
 
 import subprocess
 import ConfigParser
-import threading
+import os
+import sys
 
 conf_file = "/etc/image-scanner/image-scanner.conf"
 config = ConfigParser.RawConfigParser()
@@ -40,5 +41,14 @@ except ConfigParser.NoSectionError as conf_error:
 
 
 host_port = "{0}:{1}".format(host, port)
-cmd = ['uwsgi', '--plugin', 'python,http', '--socket', host_port,  '--protocol=http', '--wsgi-file', '/usr/lib/python2.7/site-packages/rest.py']
+if 'rest.py' in os.listdir('.'):
+    rest_py = 'rest.py'
+elif os.path.exists('/usr/lib/python2.7/site-packages/rest.py'):
+    rest_py = '/usr/lib/python2.7/site-packages/rest.py'
+else:
+    print "Unable to find rest.py"
+    sys.exit(1)
+
+cmd = ['uwsgi', '--plugin', 'python,http', '--socket', host_port,
+       '--protocol=http', '--wsgi-file', rest_py]
 subprocess.call(cmd)

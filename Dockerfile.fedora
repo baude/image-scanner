@@ -8,19 +8,19 @@ LABEL Vendor="Red Hat" License=GPLv3
 
 LABEL INSTALL="docker run --rm -it --privileged -v /etc/:/host/etc/ -e IMAGE=IMAGE -e NAME=NAME IMAGE /usr/local/bin/image-scanner-install.sh"
 
-LABEL RUN="docker run --rm --privileged -v /proc/:/hostproc/ -v /sys/fs/cgroup:/sys/fs/cgroup  -v /var/log:/var/log -v /tmp:/tmp -v /run:/run -v /var/lib/docker/devicemapper/metadata/:/var/lib/docker/devicemapper/metadata/ -v /dev/:/dev/ --env container=docker --net=host --cap-add=SYS_ADMIN --ipc=host IMAGE"
+LABEL RUN="docker run -dt --privileged -v /proc/:/hostproc/ -v /sys/fs/cgroup:/sys/fs/cgroup  -v /var/log:/var/log -v /tmp:/tmp -v /run:/run -v /var/lib/docker/devicemapper/metadata/:/var/lib/docker/devicemapper/metadata/ -v /dev/:/dev/ -v /etc/image-scanner/:/etc/image-scanner --env container=docker --net=host --cap-add=SYS_ADMIN --ipc=host IMAGE"
 
 ADD image_scanner.py /usr/bin/image-scanner
-ADD rest.py /usr/bin/image-scanner-rest-server
+ADD image-scanner-d.py /usr/bin/image-scanner-d
 RUN chmod a+x /usr/bin/image-scanner
-RUN chmod a+x /usr/bin/image-scanner-rest-server
+RUN chmod a+x /usr/bin/image-scanner-d
 ADD image-scanner-install.sh /usr/local/bin/
 RUN mkdir /usr/local/conf
 ADD image-scanner.conf /usr/local/conf/
 
-ADD docker_mount.py image_scanner.py image_scanner_client.py serv.py reporter.py dist_breakup.py applicationconfiguration.py scan.py /usr/lib/python2.7/site-packages/
+ADD docker_mount.py image_scanner.py rest.py image_scanner_client.py serv.py reporter.py dist_breakup.py applicationconfiguration.py scan.py /usr/lib/python2.7/site-packages/
 
 RUN echo 'PS1="[image-scanner]#  "' > /etc/profile.d/ps1.sh
 
-CMD /bin/bash
+CMD /usr/bin/image-scanner-d
 

@@ -135,6 +135,13 @@ def send_js(path):
     return send_from_directory('/tmp/openscap_reports', path)
 
 if __name__ == '__main__':
+    # FIXME
+    # I'm not dead sure this is 100% a good idea, but in order
+    # to avoid issues....
+    if os.geteuid is not 0:
+            print "rest must be run as root"
+            sys.exit(1)
+
     conf_file = "/etc/image-scanner/image-scanner.conf"
     parser = argparse.ArgumentParser(description='Scan Utility for Containers')
     parser.add_argument('-i', '--hostip', help='host IP to run on',

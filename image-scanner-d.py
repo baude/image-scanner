@@ -23,6 +23,14 @@ import ConfigParser
 import os
 import sys
 
+# FIXME
+# I'm not dead sure this is 100% a good idea, but in order
+# to avoid issues....
+if os.geteuid is not 0:
+    print "image-scanner-d must be run as root"
+    sys.exit(1)
+
+
 conf_file = "/etc/image-scanner/image-scanner.conf"
 config = ConfigParser.RawConfigParser()
 

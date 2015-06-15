@@ -138,7 +138,7 @@ if __name__ == '__main__':
     # FIXME
     # I'm not dead sure this is 100% a good idea, but in order
     # to avoid issues....
-    if os.geteuid is not 0:
+    if os.geteuid() is not 0:
             print "rest must be run as root"
             sys.exit(1)
 

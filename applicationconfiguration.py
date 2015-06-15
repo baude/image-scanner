@@ -57,6 +57,7 @@ class ApplicationConfiguration(Singleton):
             self.api = bool(parserargs.api)
         if self.api:
             self.url_root = parserargs.url_root
+        self.fcons=None
         self.cons = None
         self.images = None
         self.return_json = []

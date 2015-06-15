@@ -4,7 +4,7 @@ import json
 api_path = "image-scanner/api"
 headers = {'content-type': 'application/json'}
 host = "localhost"
-port = 5000
+port = 5001
 api_func = "scan"
 
 # Replace with an example of an image id

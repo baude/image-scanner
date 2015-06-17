@@ -1,0 +1,7 @@
+setup.py
+image_scanner/image_scanner.py
+image_scanner/rest.py
+image_scanner.egg-info/PKG-INFO
+image_scanner.egg-info/SOURCES.txt
+image_scanner.egg-info/dependency_links.txt
+image_scanner.egg-info/top_level.txt

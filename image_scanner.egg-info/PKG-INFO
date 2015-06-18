@@ -1,0 +1,10 @@
+Metadata-Version: 1.0
+Name: image-scanner
+Version: 0.1a
+Summary: Vulnerability scanner for containers and images
+Home-page: https://github.com/baude/image-scanner
+Author: Brent Baude
+Author-email: bbaude@redhat.com
+License: LGPLv2+
+Description: UNKNOWN
+Platform: UNKNOWN

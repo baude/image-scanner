@@ -9,3 +9,6 @@ install:
 	mkdir -p $(DESTDIR)/etc/image-scanner
 	cp conf/image-scanner.conf $(DESTDIR)/etc/image-scanner
 
+clean:
+	rm -fvr packaging/image-scanner-*
+	rm -fvr packaging/x86_64

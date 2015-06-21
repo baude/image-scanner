@@ -27,11 +27,11 @@ import logging
 import sys
 import time
 import signal
-from dist_breakup import CVEParse
-from applicationconfiguration import ApplicationConfiguration
-from reporter import Reporter
-from scan import Scan
-from docker_mount import DockerMount, DockerMountError
+from image_scanner.dist_breakup import CVEParse
+from image_scanner.applicationconfiguration import ApplicationConfiguration
+from image_scanner.reporter import Reporter
+from image_scanner.scan import Scan
+from image_scanner.docker_mount import DockerMount, DockerMountError
 import subprocess
 import psutil
 

@@ -9,7 +9,7 @@ Source0: %{name}-%{version}.tar.xz
 License: LGPLv2+
 URL: https://github.com/baude/image-scanner
 
-Requires: python-docker-py, python-flask, image_scanner_client
+Requires: python-docker-py, python-flask, image-scanner-python-client
 
 %description
 Scans images and containers looking for packages that have CVEs
@@ -29,10 +29,12 @@ make install DESTDIR=%{buildroot}
 %files python-client
 %doc README.md LICENSE
 %{python_sitelib}/image_scanner_client/image_scanner_client.py
+%{python_sitelib}/image_scanner_client/xml_parse.py
+%{python_sitelib}/image_scanner_client/__init__.py
 
 %files
 %doc README.md LICENSE
-%{_bindir}/image_scanner.py
+%{_bindir}/docker_scanner.py
 %{_bindir}/image-scanner-d.py
 %{python_sitelib}/*
 %dir %{_sysconfdir}/image-scanner/

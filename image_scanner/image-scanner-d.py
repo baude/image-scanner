@@ -26,7 +26,7 @@ import sys
 # FIXME
 # I'm not dead sure this is 100% a good idea, but in order
 # to avoid issues....
-if os.geteuid is not 0:
+if os.geteuid() is not 0:
     print "image-scanner-d must be run as root"
     sys.exit(1)
 
@@ -51,8 +51,8 @@ except ConfigParser.NoSectionError as conf_error:
 host_port = "{0}:{1}".format(host, port)
 if 'rest.py' in os.listdir('.'):
     rest_py = 'rest.py'
-elif os.path.exists('/usr/lib/python2.7/site-packages/rest.py'):
-    rest_py = '/usr/lib/python2.7/site-packages/rest.py'
+elif os.path.exists('/usr/lib/python2.7/site-packages/image_scanner/rest.py'):
+    rest_py = '/usr/lib/python2.7/site-packages/image_scanner/rest.py'
 else:
     print "Unable to find rest.py"
     sys.exit(1)

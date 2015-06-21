@@ -23,7 +23,7 @@ import os
 import collections
 from flask import jsonify, request, send_from_directory
 # from flask import make_response
-from image_scanner import Worker
+from image_scanner.docker_scanner import Worker
 import docker
 import argparse
 import sys

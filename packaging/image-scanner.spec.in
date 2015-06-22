@@ -4,6 +4,7 @@ Summary: Container and Image Vulnerability Scanner
 Name: image-scanner
 Version: 2015.6
 Release: 1%{?dist}
+BuildArch: noarch
 
 Source0: %{name}-%{version}.tar.xz
 License: LGPLv2+
@@ -16,6 +17,7 @@ Scans images and containers looking for packages that have CVEs
 
 %package python-client
 Summary: Client API implementation for image-scanner
+BuildArch: noarch
 Group: foo/bar
 %description python-client
 Provides the python client API for interacting with a local or remote image-scanner

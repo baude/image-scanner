@@ -11,4 +11,4 @@ install:
 
 clean:
 	rm -fvr packaging/image-scanner-*
-	rm -fvr packaging/x86_64
+	rm -fvr packaging/noarch

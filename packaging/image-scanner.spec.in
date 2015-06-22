@@ -30,15 +30,14 @@ make install DESTDIR=%{buildroot}
 
 %files python-client
 %doc README.md LICENSE
-%{python_sitelib}/image_scanner_client/image_scanner_client.py
-%{python_sitelib}/image_scanner_client/xml_parse.py
-%{python_sitelib}/image_scanner_client/__init__.py
+%{python_sitelib}/image_scanner_client/*
 
 %files
 %doc README.md LICENSE
 %{_bindir}/docker_scanner.py
 %{_bindir}/image-scanner-d.py
-%{python_sitelib}/*
+%{python_sitelib}/image_scanner/*
+%{python_sitelib}/image_scanner-*.egg-info/*
 %dir %{_sysconfdir}/image-scanner/
 %config(noreplace) %{_sysconfdir}/image-scanner/*
 

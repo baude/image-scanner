@@ -391,9 +391,9 @@ class Worker(object):
                       'allimages', 'images', 'logfile', 'number',
                       'reportdir', 'workdir', 'api', 'url_root',
                       'host']
-
         for tuple_key in tuple_keys:
-            json_log[tuple_key] = getattr(self.ac.parserargs, tuple_key)
+            tuple_val = None if tuple_key not in self.ac.parserargs else getattr(self.ac.parserargs, tuple_key) 
+            json_log[tuple_key] = tuple_val
 
         with open(self.ac.docker_state, 'w') as state_file:
             json.dump(json_log, state_file)

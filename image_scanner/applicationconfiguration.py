@@ -57,11 +57,12 @@ class ApplicationConfiguration(Singleton):
             self.api = bool(parserargs.api)
         if self.api:
             self.url_root = parserargs.url_root
-        self.fcons=None
+        self.fcons = None
         self.cons = None
         self.images = None
         self.return_json = None
         self.conn = self.ValidateHost(parserargs.host)
+        self.parserargs = parserargs
 
     def ValidateHost(self, host):
 

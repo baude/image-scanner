@@ -21,7 +21,6 @@
 import requests
 import urlparse
 import json
-from xml.etree import ElementTree
 import xml.etree.ElementTree as ET
 
 
@@ -90,7 +89,6 @@ class Client(requests.Session):
         '''
         results = self.get(url)
 
-        #return ElementTree.fromstring(results.content)
         return ET.ElementTree(ET.fromstring(results.content))
 
     def get_docker_json(self, url):

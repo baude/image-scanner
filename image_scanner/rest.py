@@ -33,7 +33,7 @@ application = flask.Flask(__name__, static_path='/tmp/')
 # app.config.update(SERVER_NAME='127.0.0.1:5001')
 
 scan_args = ['allcontainers', 'allimages', 'images', 'logfile', 'nocache',
-             'number', 'onlyactive', 'reportdir', 'startweb', 'stopweb',
+             'number', 'onlyactive', 'reportdir', 
              'workdir', 'api', 'url_root', 'host', 'rest_host', 'rest_port']
 
 scan_tuple = collections.namedtuple('Namespace', scan_args)
@@ -69,8 +69,6 @@ def create_tuple(in_args, url_root, rest_host, rest_port):
                             None else in_args.get('reportdir'),
                             workdir="/tmp" if in_args.get('workdir') is None
                             else in_args.get('workdir'),
-                            stopweb=False,
-                            startweb=False,
                             api=True,
                             url_root=url_root,
                             host=docker_host,

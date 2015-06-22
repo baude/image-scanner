@@ -113,8 +113,7 @@ class Worker(object):
 
     def __init__(self, args):
         self.args = args
-        if not args.startweb and not args.stopweb:
-            self.procs = self.set_procs(args.number)
+        self.procs = self.set_procs(args.number)
         self.ac = ApplicationConfiguration(parserargs=args)
         self.cs = ContainerSearch()
         self.output = Reporter()
@@ -325,33 +324,11 @@ class Worker(object):
             sys.exit(1)
         return work_list
 
-    def start_web(self, workdir):
-        report_dir = os.path.join(workdir, "openscap_reports")
-        cmd = ['uwsgi', '--plugin', 'python,http', '--http-socket', ':9090',
-               '--check-static', report_dir, '--static-index', 'summary.html',
-               '--wsgi-file', 'serv.py', '--daemonize',
-               os.path.join(workdir, "uwsgi.log")]
-        p = threading.Thread(target=subprocess.call, args=(cmd,))
-        p.daemon = True
-        p.start()
-
-    def stop_web(self):
-        import requests
-        stop = requests.Session()
-        try:
-            stop.get('http://localhost:9090/serv')
-        except requests.exceptions.ConnectionError:
-            pass
-
     def start_application(self):
         start_time = time.time()
         logging.basicConfig(filename=self.args.logfile,
                             format='%(asctime)s %(levelname)-8s %(message)s',
                             datefmt='%m-%d %H:%M', level=logging.DEBUG)
-        if self.args.startweb:
-            self.start_web(self.args.workdir)
-        if self.args.stopweb:
-            self.stop_web()
         if self.args.onlyactive:
             self.onlyactive()
         if self.args.allcontainers:
@@ -392,7 +369,8 @@ class Worker(object):
                       'reportdir', 'workdir', 'api', 'url_root',
                       'host']
         for tuple_key in tuple_keys:
-            tuple_val = None if tuple_key not in self.ac.parserargs else getattr(self.ac.parserargs, tuple_key) 
+            tuple_val = None if tuple_key not in self.ac.parserargs else \
+                getattr(self.ac.parserargs, tuple_key)
             json_log[tuple_key] = tuple_val
 
         with open(self.ac.docker_state, 'w') as state_file:
@@ -423,10 +401,6 @@ if __name__ == '__main__':
     parser.add_argument('--nocache', default=False, help='Do not cache "\
                         "anything',
                         action='store_true')
-    group.add_argument('--startweb', default=False, help='Start a web backend',
-                       action='store_true')
-    group.add_argument('--stopweb', default=False, help='Stop the web backend',
-                       action='store_true')
     parser.add_argument('-H', '--host', default='unix://var/run/docker.sock',
                         help='Specify docker host socket to use')
 

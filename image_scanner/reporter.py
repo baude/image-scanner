@@ -38,9 +38,6 @@ class Reporter(object):
             os.mkdir(self.report_dir)
         self.content = ""
 
-    def add_content(self, content):
-        self.content = self.content + content
-
     def report_summary(self):
         '''
         This function is the primary function to output results
@@ -64,34 +61,20 @@ class Reporter(object):
                     baseurl + "/{0}.xml".format(image.iid)
 
             if image.msg is None:
-                html_p = "<tr><td><b>{0}</b>:<td colspan=2><a href='{1}.html'>{2}</a></td></tr>".format(dtype, image.iid, image.iid)
-                self.add_content(html_p) 
                 for cid in image.cid:
                     short_cid_list.append(cid[:12])
                 if self.appc.api:
                     image_json[image.iid]['cids'] = short_cid_list
                 self.appc._print("{0}OS: {1}".format(" " * 5, image.os.rstrip()))
-                html_p = "<tr><td>{0}</td><td><b>OS:</b></td><td>{1}</td></tr>".format(" " * 5, image.os.rstrip())
-                self.add_content(html_p)
                 if dtype is not "Container":
                     self.appc._print("{0}Containers affected "
                           "({1}): {2}".format(" " * 5, len(short_cid_list),
                                               ', '.join(short_cid_list)))
-                    html_p = "<tr><td>{0}</td><td><b>Containers affected:</b></td><td>" \
-                          "({1}): {2}</td></tr>".format(" " * 5, len(short_cid_list),
-                                              ', '.join(short_cid_list))
-                    self.add_content(html_p)
                 self.appc._print("{0}Results: Critical({1}) Important({2}) Moderate({3})"\
                         " Low({4})".format(" " * 5, image.sevs['Critical'],
                                          image.sevs['Important'],
                                          image.sevs['Moderate'],
                                          image.sevs['Low']))
-                html_p = "<tr><td>{0}</td><td><b>Results:</b></td><td>Critical({1}) Important({2}) Moderate({3})"\
-                        " Low({4})</td></tr>".format(" " * 5, image.sevs['Critical'],
-                                         image.sevs['Important'],
-                                         image.sevs['Moderate'],
-                                         image.sevs['Low'])
-                self.add_content(html_p)
                 if self.appc.api:
                     image_json[image.iid]['critical'] = image.sevs['Critical']
                     image_json[image.iid]['important'] = image.sevs['Important']
@@ -99,16 +82,10 @@ class Reporter(object):
                     image_json[image.iid]['low'] = image.sevs['Low']
                 self.appc._print("")
             else:
-                html_p = "<tr><td><b>{0}</b>:<td colspan=2>{1}</td></tr>".format(dtype, image.iid)
-                self.add_content(html_p) 
                 self.appc._print("{0}Results: {1}".format(" " * 5, image.msg))
-                html_p =  "<tr><td>{0}</td><td><b>Results</b>:</td><td>{1}</td></tr>".format(" " * 5, image.msg)
-                self.add_content(html_p)
                 if self.appc.api:
                     image_json[image.iid]['msg'] = image.msg
                 self.appc._print("")
-            html_p = "<tr><td colspan=3> </td></tr>"
-            self.add_content(html_p)
             if self.appc.api:
                 self.appc.return_json.append(image_json)
         report_files = []
@@ -122,19 +99,6 @@ class Reporter(object):
         self.appc._print("Writing summary and reports to {0}".format(self.report_dir))
         for report in report_files:
                 os.path.join(self.report_dir, report)
-
-        sum_out = open(os.path.join(self.report_dir, "summary.html"), "wb")
-        sum_html = """
-        <html><body>
-        <h2>Summary</h2>
-        <table>
-        %(content)s
-        </table>
-        </body>
-        </html>
-        """ % {'content': self.content}
-        sum_out.write(sum_html)
-        sum_out.close()
 
     def _get_dtype(self, iid):
         ''' Returns whether the given id is an image or container '''

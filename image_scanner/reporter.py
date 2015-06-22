@@ -21,7 +21,6 @@ import collections
 import os
 from applicationconfiguration import ApplicationConfiguration
 import urlparse
-import json
 
 
 class Reporter(object):
@@ -32,14 +31,12 @@ class Reporter(object):
         self.list_of_outputs = []
         self.appc = ApplicationConfiguration()
         self.report_dir = os.path.join(self.appc.reportdir, "openscap_reports")
-        self.docker_state = os.path.join(self.report_dir, "docker_state.json")
+        self.appc.docker_state = os.path.join(self.report_dir,
+                                              "docker_state.json")
 
         if not os.path.exists(self.report_dir):
             os.mkdir(self.report_dir)
         self.content = ""
-
-        with open(self.docker_state, 'w') as state_file:
-            json.dump(self.appc.fcons, state_file)
 
     def add_content(self, content):
         self.content = self.content + content
@@ -51,7 +48,8 @@ class Reporter(object):
         '''
         self.appc._print("Summary:")
         if self.appc.api:
-            baseurl = urlparse.urljoin(self.appc.url_root, os.path.basename(self.report_dir))
+            baseurl = urlparse.urljoin(self.appc.url_root,
+                                       os.path.basename(self.report_dir))
             self.appc.json_url = baseurl + '/docker_state.json'
         for image in self.list_of_outputs:
             short_cid_list = []

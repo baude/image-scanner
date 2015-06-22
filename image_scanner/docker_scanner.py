@@ -17,7 +17,6 @@
 # Boston, MA 02111-1307, USA.
 
 import os
-import docker
 import urllib2
 import bz2
 import timeit
@@ -34,6 +33,8 @@ from image_scanner.scan import Scan
 from image_scanner.docker_mount import DockerMount, DockerMountError
 import subprocess
 import psutil
+from datetime import datetime
+import json
 
 
 class Singleton(object):
@@ -121,6 +122,8 @@ class Worker(object):
                                      "com.redhat.rhsa-all.xml")
         self.cve_file_bz = os.path.join(self.ac.workdir,
                                         "com.redhat.rhsa-all.xml.bz2")
+
+        self.scan_list = None
 
     def set_procs(self, number):
 
@@ -212,6 +215,7 @@ class Worker(object):
             self._do_work(con_list)
 
     def _do_work(self, image_list):
+        self.scan_list = image_list
         cp = CVEParse(self.ac.workdir)
         if (not os.path.exists(cp.xmlf)) or \
                 (self.ac.nocache) or \
@@ -256,7 +260,7 @@ class Worker(object):
         # when using the API, depends on how it is called
 
         # if self.ac.api:
-        #     exit_thread_count = 1 
+        #     exit_thread_count = 1
         # else:
 
         exit_thread_count = 1
@@ -369,9 +373,30 @@ class Worker(object):
             duration = duration / 60
 
         logging.info("Completed entire scan in {0} {1}".format(duration, unit))
+        self.dump_json_log()
         if self.ac.api:
             return self.ac.return_json, self.ac.json_url
 
+    def dump_json_log(self):
+        '''
+        Creates a log of information about the scan and what was
+        scanned for post-scan analysis
+        '''
+
+        json_log = {}
+        json_log['scanned_content'] = self.scan_list
+        json_log['docker_state'] = self.ac.fcons
+        json_log['scan_time'] = datetime.today().isoformat(' ')
+        tuple_keys = ['rest_host', 'rest_port', 'allcontainers',
+                      'allimages', 'images', 'logfile', 'number',
+                      'reportdir', 'workdir', 'api', 'url_root',
+                      'host']
+
+        for tuple_key in tuple_keys:
+            json_log[tuple_key] = getattr(self.ac.parserargs, tuple_key)
+
+        with open(self.ac.docker_state, 'w') as state_file:
+            json.dump(json_log, state_file)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Scan Utility for Containers')

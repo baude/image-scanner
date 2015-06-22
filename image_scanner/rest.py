@@ -34,7 +34,7 @@ application = flask.Flask(__name__, static_path='/tmp/')
 
 scan_args = ['allcontainers', 'allimages', 'images', 'logfile', 'nocache',
              'number', 'onlyactive', 'reportdir', 'startweb', 'stopweb',
-             'workdir', 'api', 'url_root', 'host']
+             'workdir', 'api', 'url_root', 'host', 'rest_host', 'rest_port']
 
 scan_tuple = collections.namedtuple('Namespace', scan_args)
 
@@ -45,10 +45,7 @@ connection = docker.Client(base_url=docker_host, timeout=10)
 port = None
 
 
-
-
-
-def create_tuple(in_args, url_root):
+def create_tuple(in_args, url_root, rest_host, rest_port):
     global scan_args
     global scan_tuple
     global docker_host
@@ -76,11 +73,11 @@ def create_tuple(in_args, url_root):
                             startweb=False,
                             api=True,
                             url_root=url_root,
-                            host=docker_host)
+                            host=docker_host,
+                            rest_port=rest_port,
+                            rest_host=rest_host)
     return _tmp_tuple
 
-def test():
-    print "testinggggggggggggggggggggggggggggggggggggggggggggggggggg"
 
 @application.route(os.path.join(rest_path, "test"), methods=['GET'])
 def hello_world():
@@ -104,7 +101,8 @@ def images():
     return jsonify(images)
 
 
-@application.route(os.path.join(rest_path, "inspect_container"), methods=['GET'])
+@application.route(os.path.join(rest_path, "inspect_container"),
+                   methods=['GET'])
 def inspect_container():
     ''' Returns inspect data of a container'''
     global connection
@@ -129,14 +127,11 @@ def scan():
     # Check if we have a conf file
     config.read(conf_file)
     # If we find a conf-file, override it if passed via command line
-    ## else use the conf-file
     port = config.get('main', 'port')
     host = config.get('main', 'hostip')
-    #dockerhost = args.dockerhost if args.dockerhost is not None else \
-    #    config.get('main', 'dockerhost')
 
     print host, port
-    arg_tup = create_tuple(request.json, request.url_root)
+    arg_tup = create_tuple(request.json, request.url_root, host, port)
     worker = Worker(arg_tup)
     return_json, json_url = worker.start_application()
     return jsonify({'results': return_json,
@@ -179,12 +174,9 @@ def get_env_info():
         dockerhost = args.dockerhost if args.dockerhost is not None else \
             docker_host
 
-
-    print port, host, dockerhost
     return port, host, dockerhost
 
 if __name__ == '__main__':
-    __init__()
     # FIXME
     # I'm not dead sure this is 100% a good idea, but in order
     # to avoid issues....
@@ -205,7 +197,5 @@ if __name__ == '__main__':
 
     # Checking inputs which can come from command_line,
     # defaults, or config_file
-
-
 
     application.run(debug=True, host=host, port=int(port))

@@ -1,19 +1,30 @@
-import requests
-import json
+#!/usr/bin/env python
 
-api_path = "image-scanner/api"
-headers = {'content-type': 'application/json'}
-host = "localhost"
-port = 5001
-api_func = "scan"
+# Import the client
+from image_scanner_client import Client
+from xml_parse import ParseOvalXML
 
-# Replace with an example of an image id
-image_ids = ['531cf1d78bff', '10acc']
-my_input = {'images': image_ids, 'number': 4}
+xmlp = ParseOvalXML()
+# Create the connection to the host
+image_scanner = Client("localhost", "5001", "4")
 
-my_url = "http://{0}:{1}/{2}/{3}".format(host, port, api_path, api_func)
+# Scan an image or container
+scan_results = image_scanner.scan_list(['bef54', '10acc'])
 
-my_session = requests.Session()
-my_return = my_session.get(my_url, data=json.dumps(my_input), headers=headers)
+#docker_state = image_scanner.get_docker_json(scan_results['json_url'])
 
-print my_return.text
+
+port = scan_results['port']
+host = scan_results['host']
+
+# Need to iterate the results
+for result in scan_results['results']:
+    docker_id = result.keys()[0]
+    print result[docker_id]['xml_url']
+    #print xmlp._get_root(result[docker_id]['xml_url'])
+    cve_info = xmlp.get_cve_info(result[docker_id]['xml_url'])
+
+    print xmlp.summarize(cve_info, scan_results['json_url'])
+# Test ET
+
+

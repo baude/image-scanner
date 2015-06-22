@@ -21,6 +21,9 @@
 
 import xml.etree.ElementTree as ET
 from collections import namedtuple
+from image_scanner_client import Client
+import urlparse
+import json
 
 
 class ParseOvalXML(object):
@@ -33,8 +36,16 @@ class ParseOvalXML(object):
     result_list = []
 
     def _get_root(self, result_file):
-        '''Returns an ET object for the input XML file'''
-        result_tree = ET.parse(result_file)
+        '''
+        Returns an ET object for the input XML which can be a file
+        or a URL pointing to an xml file
+        '''
+        if result_file.startswith("http://"):
+            split_url = urlparse.urlsplit(result_file)
+            image_scanner = Client(split_url.hostname, port=split_url.port)
+            result_tree = image_scanner.getxml(result_file)
+        else:
+            result_tree = ET.parse(result_file)
         return result_tree.getroot()
 
     def _get_list_cve_def_ids(self, _root):
@@ -104,11 +115,28 @@ class ParseOvalXML(object):
         _id_list = self._get_list_cve_def_ids(_root)
         return self._get_cve_def_info(_id_list, _root)
 
-    def summarize(self, cve_format_list):
+    def _get_docker_state(self, docker_state_file):
+        '''
+        Returns a JSON object provided the docker_state_file either
+        as a URL or an XML file
+        '''
+        if docker_state_file.startswith("http://"):
+            split_url = urlparse.urlsplit(docker_state_file)
+            image_scanner = Client(split_url.hostname, port=split_url.port)
+            result_json = image_scanner.get_docker_json(docker_state_file)
+        else:
+            result_json = json.loads(open(docker_state_file).read())
+        print type(result_json)
+        return result_json
+
+    def summarize_cves(self, cve_format_list, docker_state_file=None):
         '''
         Helper function to parse a summarize from a list
         of cve tuples
         '''
+        if docker_state_file is not None:
+            docker_json = self._get_docker_state(docker_state_file)
+
         summary = {}
         for cve in cve_format_list:
             if cve.severity not in summary:

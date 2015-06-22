@@ -42,6 +42,10 @@ rest_path = '/image-scanner/api/'
 
 docker_host = "unix://var/run/docker.sock"
 connection = docker.Client(base_url=docker_host, timeout=10)
+port = None
+
+
+
 
 
 def create_tuple(in_args, url_root):
@@ -75,9 +79,11 @@ def create_tuple(in_args, url_root):
                             host=docker_host)
     return _tmp_tuple
 
+def test():
+    print "testinggggggggggggggggggggggggggggggggggggggggggggggggggg"
 
 @application.route(os.path.join(rest_path, "test"), methods=['GET'])
-def get_tasks():
+def hello_world():
     ''' Test method'''
     return "hello"
 
@@ -117,10 +123,26 @@ def inspect_image():
 @application.route(os.path.join(rest_path, "scan"), methods=['GET'])
 def scan():
     ''' Kicks off a scan via REST '''
+    conf_file = "/etc/image-scanner/image-scanner.conf"
+    config = ConfigParser.RawConfigParser()
+
+    # Check if we have a conf file
+    config.read(conf_file)
+    # If we find a conf-file, override it if passed via command line
+    ## else use the conf-file
+    port = config.get('main', 'port')
+    host = config.get('main', 'hostip')
+    #dockerhost = args.dockerhost if args.dockerhost is not None else \
+    #    config.get('main', 'dockerhost')
+
+    print host, port
     arg_tup = create_tuple(request.json, request.url_root)
     worker = Worker(arg_tup)
-    return_json = worker.start_application()
-    return jsonify({'results': return_json})
+    return_json, json_url = worker.start_application()
+    return jsonify({'results': return_json,
+                    'json_url': json_url,
+                    'port': port,
+                    'host': host})
 
 
 @application.errorhandler(404)
@@ -134,28 +156,11 @@ def send_js(path):
     ''' Returns a file from the openscap_reports dir '''
     return send_from_directory('/tmp/openscap_reports', path)
 
-if __name__ == '__main__':
-    # FIXME
-    # I'm not dead sure this is 100% a good idea, but in order
-    # to avoid issues....
-    if os.geteuid() is not 0:
-            print "rest must be run as root"
-            sys.exit(1)
 
+def get_env_info():
     conf_file = "/etc/image-scanner/image-scanner.conf"
-    parser = argparse.ArgumentParser(description='Scan Utility for Containers')
-    parser.add_argument('-i', '--hostip', help='host IP to run on',
-                        default=None)
-    parser.add_argument('-p', '--port', help='port to run on', default=None)
-    parser.add_argument('-d', '--dockerhost', default=None,
-                        help='Specify docker host socket to use')
-
-    args = parser.parse_args()
-
     config = ConfigParser.RawConfigParser()
-    # Checking inputs which can come from command_line,
-    # defaults, or config_file
-
+    docker_host = "unix://var/run/docker.sock"
     try:
         # Check if we have a conf file
         config.read(conf_file)
@@ -174,15 +179,33 @@ if __name__ == '__main__':
         dockerhost = args.dockerhost if args.dockerhost is not None else \
             docker_host
 
-    try:
-        docker_host = args.dockerhost
-        connection = docker.Client(base_url=docker_host, timeout=10)
-        if not connection.ping():
-            raise(Exception)
-    except Exception, err:
-        print 'Cannot connect to the Docker daemon. ' \
-              'Is \'docker -d\' running on this host?'
-        sys.exit(1)
+
+    print port, host, dockerhost
+    return port, host, dockerhost
+
+if __name__ == '__main__':
+    __init__()
+    # FIXME
+    # I'm not dead sure this is 100% a good idea, but in order
+    # to avoid issues....
+    if os.geteuid() is not 0:
+            print "rest must be run as root"
+            sys.exit(1)
+
+    parser = argparse.ArgumentParser(description='Scan Utility for Containers')
+    parser.add_argument('-i', '--hostip', help='host IP to run on',
+                        default=None)
+    parser.add_argument('-p', '--port', help='port to run on', default=None)
+    parser.add_argument('-d', '--dockerhost', default=None,
+                        help='Specify docker host socket to use')
+
+    args = parser.parse_args()
+
+    port, host, dockerhost = get_env_info()
+
+    # Checking inputs which can come from command_line,
+    # defaults, or config_file
+
 
 
     application.run(debug=True, host=host, port=int(port))

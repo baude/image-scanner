@@ -60,7 +60,7 @@ class ApplicationConfiguration(Singleton):
         self.fcons=None
         self.cons = None
         self.images = None
-        self.return_json = []
+        self.return_json = None
         self.conn = self.ValidateHost(parserargs.host)
 
     def ValidateHost(self, host):

@@ -52,6 +52,7 @@ class Reporter(object):
         self.appc._print("Summary:")
         if self.appc.api:
             baseurl = urlparse.urljoin(self.appc.url_root, os.path.basename(self.report_dir))
+            self.appc.json_url = baseurl + '/docker_state.json'
         for image in self.list_of_outputs:
             short_cid_list = []
             dtype = self._get_dtype(image.iid)

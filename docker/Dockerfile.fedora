@@ -10,17 +10,10 @@ LABEL INSTALL="docker run --rm -it --privileged -v /etc/:/host/etc/ -e IMAGE=IMA
 
 LABEL RUN="docker run -dt --privileged -v /proc/:/hostproc/ -v /sys/fs/cgroup:/sys/fs/cgroup  -v /var/log:/var/log -v /tmp:/tmp -v /run:/run -v /var/lib/docker/devicemapper/metadata/:/var/lib/docker/devicemapper/metadata/ -v /dev/:/dev/ -v /etc/image-scanner/:/etc/image-scanner --env container=docker --net=host --cap-add=SYS_ADMIN --ipc=host IMAGE"
 
-ADD image_scanner.py /usr/bin/image-scanner
-ADD image-scanner-d.py /usr/bin/image-scanner-d
-RUN chmod a+x /usr/bin/image-scanner
-RUN chmod a+x /usr/bin/image-scanner-d
-ADD image-scanner-install.sh /usr/local/bin/
-RUN mkdir /usr/local/conf
-ADD image-scanner.conf /usr/local/conf/
-
-ADD docker_mount.py image_scanner.py rest.py image_scanner_client.py serv.py reporter.py dist_breakup.py applicationconfiguration.py scan.py /usr/lib/python2.7/site-packages/
-
 RUN echo 'PS1="[image-scanner]#  "' > /etc/profile.d/ps1.sh
 
-CMD /usr/bin/image-scanner-d
+ADD packaging/x86_64/* /tmp/
 
+RUN dnf -y install /tmp/image-scanner*.rpm && dnf clean all
+
+CMD /usr/bin/image-scanner-d.py

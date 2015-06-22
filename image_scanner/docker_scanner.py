@@ -68,6 +68,7 @@ class ContainerSearch(object):
         self.ac.fcons = self.fcons
         self.ac.cons = self.cons
         self.ac.images = self.images
+        self.ac.return_json = []
 
     def _returnImageList(self, images):
         '''
@@ -251,10 +252,14 @@ class Worker(object):
                 new_thread.start()
                 self._progress(float(self.threads_complete),
                                float(total_images))
-        if self.ac.api:
-            exit_thread_count = 2
-        else:
-            exit_thread_count = 1
+        # Seeing some weirdness with the exit thread count
+        # when using the API, depends on how it is called
+
+        # if self.ac.api:
+        #     exit_thread_count = 1 
+        # else:
+
+        exit_thread_count = 1
         while len(threading.enumerate()) > exit_thread_count:
             self._progress(float(self.threads_complete), float(total_images))
             time.sleep(1)
@@ -284,7 +289,6 @@ class Worker(object):
                 logging.debug("Scanned chroot for image {0}"
                               " completed in {1} seconds"
                               .format(image, t))
-
                 timeit.Timer(f.report_results).timeit(number=1)
             else:
                 # This is not a RHEL image or container
@@ -366,7 +370,7 @@ class Worker(object):
 
         logging.info("Completed entire scan in {0} {1}".format(duration, unit))
         if self.ac.api:
-            return self.ac.return_json
+            return self.ac.return_json, self.ac.json_url
 
 
 if __name__ == '__main__':

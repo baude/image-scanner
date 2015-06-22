@@ -22,6 +22,7 @@ import requests
 import urlparse
 import json
 from xml.etree import ElementTree
+import xml.etree.ElementTree as ET
 
 
 class ImageScannerClientError(Exception):
@@ -88,7 +89,17 @@ class Client(requests.Session):
         an Element Tree
         '''
         results = self.get(url)
-        return ElementTree.fromstring(results.content)
+
+        #return ElementTree.fromstring(results.content)
+        return ET.ElementTree(ET.fromstring(results.content))
+
+    def get_docker_json(self, url):
+        '''
+        Given a URL, return the state of the docker containers and images
+        when the images-scanning occurred.  Returns as JSON object.
+        '''
+        results = self.get(url)
+        return json.loads(results.text)
 
     def _get_results(self, url, data, headers=None):
         '''Wrapper functoin for calling the request.session.get'''

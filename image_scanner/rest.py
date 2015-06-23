@@ -29,6 +29,7 @@ import argparse
 import sys
 import ConfigParser
 from image_scanner_client.image_scanner_client import ImageScannerClientError
+import json
 
 application = flask.Flask(__name__, static_path='/tmp/')
 # app.config.update(SERVER_NAME='127.0.0.1:5001')
@@ -133,11 +134,10 @@ def scan():
         return_json, json_url = worker.start_application()
     except ImageScannerClientError as failed_scan:
         return jsonify({'Error': str(failed_scan)})
-    return jsonify({'results': return_json.text,
+    return jsonify({'results': return_json,
                     'json_url': json_url,
                     'port': port,
                     'host': host})
-
 
 @application.errorhandler(404)
 def not_found(error):

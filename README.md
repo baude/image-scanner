@@ -8,6 +8,69 @@ The image-scanner can be run on the command line but it is designed to be driven
 
 As of this writing, the image-scanner can only scan Red Hat Enterprise based containers and images due to the lack of openscap inputs for other distributions.
 
+### Building the image-scanner image
+Inside the git repository is a directory called docker which contains a docker file for RHEL and Fedora, named Dockerfile and Dockerfile.fedora respectively.  To build the Fedora image, simply running the following from the base git directory.
+
+````
+sudo docker build -t fedora-image-scanner -f docker/Dockerfile.fedora .
+...
+Content removed for brevity
+Step 9 : CMD /usr/bin/image-scanner-d.py
+ ---> Running in 9add596940ac
+ ---> 9884820b91c7
+Removing intermediate container 9add596940ac
+Successfully built 9884820b91c7
+````
+### Running the image-scanner
+The image scanner can be run in two different ways: via commandline or via API.  We believe both ways, the image-scanner should be run within the confines of a container.  Our expectation is that after some time, running the Client API will be the preferred method.  Running the command line method will
+be favored for simple, immediate checks.
+
+#### Running the image-scanner as a daemon (default)
+The default behavior of the image-scanner image is to run as a REST daemon intended to interact with the client APIs.  Use the atomic command to create and run a container based on the image-scanner image.
+
+First, use atomic to 'install' the image.  This prepares the image to be run by adding /etc/image-scanner/image-scanner.conf file into your filesystem.  This file contains several editable attributes  for running the image-scanner.
+````
+[bbaude@localhost image-scanner]$ atomic install fedora-image-scanner
+docker run --rm -it --privileged -v /etc/:/host/etc/ -e IMAGE=fedora-image-scanner -e NAME=fedora-image-scanner fedora-image-scanner sh /root/image-scanner/docker/image-scanner-install.sh
+
+The image-scanner configuration file is located at /etc/image-scanner/image-scanner.conf with defaults.  You can change the port number and broadcasting IP in that file
+````
+Now you can run the image-scanner simply with the atomic command:
+````
+[bbaude@localhost image-scanner]$ atomic run fedora-image-scannerdocker run -dt --privileged -v /proc/:/hostproc/ -v /sys/fs/cgroup:/sys/fs/cgroup -v /var/log:/var/log -v /tmp:/tmp -v /run:/run -v /var/lib/docker/devicemapper/metadata/:/var/lib/docker/devicemapper/metadata/ -v /dev/:/dev/ -v /etc/image-scanner/:/etc/image-scanner --env container=docker --net=host --cap-add=SYS_ADMIN --ipc=host fedora-image-scanner
+acb44b0cb87cbcb94047a0c8e8873dcb451ebb927005afce2e8a77929cacdac2
+````
+
+#### Running the image-scanner from the command line inside the container
+As mentioned earlier, you can run the image-scanner from the command line.  Firstly, we need the container ID of the image-scanner.
+
+````
+[bbaude@localhost image-scanner]$ docker ps
+CONTAINER ID        IMAGE                  COMMAND                CREATED             STATUS              PORTS               NAMES
+31f34f95915d        fedora-image-scanner   "/bin/sh -c /usr/bin   3 seconds ago       Up 2 seconds                            trusting_kirch
+````
+With the container ID, you can now use docker exec to 'enter' the container and run the image-scanner on the command line.
+
+````
+[bbaude@localhost image-scanner]$ docker exec -it 31f34f95915d /bin/bash
+[image-scanner]#  docker_scanner.py -i bef54
+
+Begin processing
+
+
+[####################] 100%    1/1
+
+
+Summary:
+     Image: bef54b8f8a2fdd221734f1da404d4c0a7d07ee9169b1443a338ab54236c8c91a
+     OS: Red Hat Enterprise Linux Server release 7.0 (Maipo)
+     Containers affected (14): 92b40036df6c, 1e30cf43682f, 69f2e0e235bc, 16aa8e002c75, d509243f9f57, 2afb7826ab2e, 2e8aef51d32e, 87a04ca27415, 4fcb771eacf2, 73f0d6d0da09, 06c507ed5d13, b10ace4ded9a, d5d35c53b264, 4f36b909b5ae
+     Results: Critical(1) Important(4) Moderate(11) Low(1)
+
+Writing summary and reports to /tmp/openscap_reports
+````
+
+
 ### Client API
 
 The client API is now written in Python and provides several key API calls.

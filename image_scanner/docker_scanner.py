@@ -55,6 +55,7 @@ class Singleton(object):
         """Initialize a singleton instance before it is registered."""
         pass
 
+
 class ContainerSearch(object):
 
     def __init__(self):
@@ -189,15 +190,23 @@ class Worker(object):
         for container in self.cs.active_containers:
             con_list.append(container['Id'])
         if len(con_list) == 0:
-            print "There are no active containers on this system"
-            sys.exit(1)
+            error = "There are no active containers on this system"
+            if not self.ac.api:
+                print error
+                sys.exit(1)
+            else:
+                raise ImageScannerClientError(error)
         else:
             self._do_work(con_list)
 
     def allimages(self):
         if len(self.cs.imagelist) == 0:
-            print "There are no images on this system"
-            sys.exit(1)
+            error = "There are no images on this system"
+            if not self.ac.api:
+                print error
+                sys.exit(1)
+            else:
+                raise ImageScannerClientError(error)
         self._do_work(self.cs.imagelist)
 
     def list_of_images(self, image_list):
@@ -205,8 +214,12 @@ class Worker(object):
 
     def allcontainers(self):
         if len(self.cs.cons) == 0:
-            print "There are no containers on this system"
-            sys.exit(1)
+            error = "There are no containers on this system"
+            if not self.ac.api:
+                print error
+                sys.exit(1)
+            else:
+                raise ImageScannerClientError(error)
         else:
             con_list = []
             for con in self.cs.cons:

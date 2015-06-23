@@ -28,12 +28,13 @@ import docker
 import argparse
 import sys
 import ConfigParser
+from image_scanner_client.image_scanner_client import ImageScannerClientError
 
 application = flask.Flask(__name__, static_path='/tmp/')
 # app.config.update(SERVER_NAME='127.0.0.1:5001')
 
 scan_args = ['allcontainers', 'allimages', 'images', 'logfile', 'nocache',
-             'number', 'onlyactive', 'reportdir', 
+             'number', 'onlyactive', 'reportdir',
              'workdir', 'api', 'url_root', 'host', 'rest_host', 'rest_port']
 
 scan_tuple = collections.namedtuple('Namespace', scan_args)
@@ -119,20 +120,20 @@ def inspect_image():
 @application.route(os.path.join(rest_path, "scan"), methods=['GET'])
 def scan():
     ''' Kicks off a scan via REST '''
-    conf_file = "/etc/image-scanner/image-scanner.conf"
-    config = ConfigParser.RawConfigParser()
-
-    # Check if we have a conf file
-    config.read(conf_file)
-    # If we find a conf-file, override it if passed via command line
-    port = config.get('main', 'port')
-    host = config.get('main', 'hostip')
-
-    print host, port
+    try:
+        port, host, dockerhost = get_env_info()  
+    except ConfigParser.NoSectionError:
+        return jsonify({'Error': 'Unable to parse conf file'})
     arg_tup = create_tuple(request.json, request.url_root, host, port)
-    worker = Worker(arg_tup)
-    return_json, json_url = worker.start_application()
-    return jsonify({'results': return_json,
+    try:
+        worker = Worker(arg_tup)
+    except ImageScannerClientError as fail_docker:
+        return jsonify({'Error': "Failed to connect to the docker host"})
+    try:
+        return_json, json_url = worker.start_application()
+    except ImageScannerClientError as failed_scan:
+        return jsonify({'Error': str(failed_scan)})
+    return jsonify({'results': return_json.text,
                     'json_url': json_url,
                     'port': port,
                     'host': host})
@@ -159,18 +160,12 @@ def get_env_info():
         config.read(conf_file)
         # If we find a conf-file, override it if passed via command line
         # else use the conf-file
-        port = args.port if args.port is not None else \
-            config.get('main', 'port')
-        host = args.hostip if args.hostip is not None else \
-            config.get('main', 'hostip')
-        dockerhost = args.dockerhost if args.dockerhost is not None else \
-            config.get('main', 'dockerhost')
-    except ConfigParser.NoSectionError as conf_error:
-        # No conf file found, resort to checking command line, then defaults
-        port = args.port if args.port is not None else 5001
-        host = args.hostip if args.hostip is not None else "127.0.0.1"
-        dockerhost = args.dockerhost if args.dockerhost is not None else \
-            docker_host
+        port = config.get('main', 'port')
+        host = config.get('main', 'hostip')
+        dockerhost = config.get('main', 'dockerhost')
+    except ConfigParser.NoSectionError:
+        # No conf file found
+        raise
 
     return port, host, dockerhost
 

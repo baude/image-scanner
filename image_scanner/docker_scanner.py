@@ -31,6 +31,7 @@ from image_scanner.applicationconfiguration import ApplicationConfiguration
 from image_scanner.reporter import Reporter
 from image_scanner.scan import Scan
 from image_scanner.docker_mount import DockerMount, DockerMountError
+from image_scanner_client.image_scanner_client import ImageScannerClientError
 import subprocess
 import psutil
 from datetime import datetime
@@ -53,7 +54,6 @@ class Singleton(object):
     def _singleton_init(self, *args, **kwargs):
         """Initialize a singleton instance before it is registered."""
         pass
-
 
 class ContainerSearch(object):
 
@@ -319,9 +319,13 @@ class Worker(object):
                 iid, dtype = dm.get_iid(image)
                 work_list.append(iid)
         except DockerMountError:
-            print "Unable to associate {0} with any image " \
-                  "or container".format(image)
-            sys.exit(1)
+            error = "Unable to associate {0} with any image " \
+                    "or container".format(image)
+            if not self.ac.api:
+                print error
+                sys.exit(1)
+            else:
+                raise ImageScannerClientError(error)
         return work_list
 
     def start_application(self):

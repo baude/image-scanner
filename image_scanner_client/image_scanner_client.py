@@ -49,6 +49,7 @@ class Client(requests.Session):
         con_scan = 'allcontainers' if onlyactive is False else 'onlyactive'
         params = {con_scan: True, 'number': self.num_threads}
         results = self._get_results(url, data=json.dumps(params))
+        self._check_result(results)
         return json.loads(results.text)
 
     def scan_list(self, scan_list):
@@ -61,6 +62,7 @@ class Client(requests.Session):
         url = urlparse.urljoin(self.host, self.api_path + "/scan")
         params = {'images': scan_list, 'number': self.num_threads}
         results = self._get_results(url, data=json.dumps(params))
+        self._check_result(results)
         return json.loads(results.text)
 
     def scan_all_images(self):
@@ -68,6 +70,7 @@ class Client(requests.Session):
         url = urlparse.urljoin(self.host, self.api_path + "/scan")
         params = {'allimages': True, 'number': self.num_threads}
         results = self._get_results(url, data=json.dumps(params))
+        self._check_result(results)
         return json.loads(results.text)
 
     def inspect_container(self, cid):
@@ -87,8 +90,11 @@ class Client(requests.Session):
         Given a URL string, returns the results of an openscap XML file as
         an Element Tree
         '''
-        results = self.get(url)
-
+        try:
+            results = self.get(url)
+        except requests.exceptions.ConnectionError:
+            raise ImageScannerClientError("Unable to connect to REST server "
+                                          "at {0}".format(url))
         return ET.ElementTree(ET.fromstring(results.content))
 
     def get_docker_json(self, url):
@@ -96,10 +102,24 @@ class Client(requests.Session):
         Given a URL, return the state of the docker containers and images
         when the images-scanning occurred.  Returns as JSON object.
         '''
-        results = self.get(url)
+        try:
+            results = self.get(url)
+        except requests.exceptions.ConnectionError:
+            raise ImageScannerClientError("Unable to connect to REST server "
+                                          "at {0}".format(url))
         return json.loads(results.text)
 
     def _get_results(self, url, data, headers=None):
         '''Wrapper functoin for calling the request.session.get'''
         headers = self.request_headers if headers is None else headers
-        return self.get(url, data=data, headers=headers)
+        try:
+            results = self.get(url, data=data, headers=headers)
+        except requests.exceptions.ConnectionError:
+            raise ImageScannerClientError("Unable to connect to REST server "
+                                          "at {0}".format(url))
+        return results
+
+    def _check_result(self, result):
+        result_json = json.loads(result.text)
+        if 'Error' in result_json:
+            raise ImageScannerClientError(result_json['Error'])

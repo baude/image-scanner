@@ -49,7 +49,8 @@ except ConfigParser.NoSectionError as conf_error:
 
 
 host_port = "{0}:{1}".format(host, port)
-if 'rest.py' in os.listdir('image_scanner/'):
+if os.path.exists('image_scanner/') and 'rest.py' in \
+        os.listdir('image_scanner/'):
     rest_py = 'image_scanner/rest.py'
 elif os.path.exists('/usr/lib/python2.7/site-packages/image_scanner/rest.py'):
     rest_py = '/usr/lib/python2.7/site-packages/image_scanner/rest.py'

@@ -381,13 +381,15 @@ class Worker(object):
         json_log['scanned_content'] = self.scan_list
         json_log['docker_state'] = self.ac.fcons
         json_log['scan_time'] = datetime.today().isoformat(' ')
+        json_log['results_summary'] = self.ac.return_json
+        json_log['docker_state_url'] = self.ac.json_url
         tuple_keys = ['rest_host', 'rest_port', 'allcontainers',
                       'allimages', 'images', 'logfile', 'number',
                       'reportdir', 'workdir', 'api', 'url_root',
                       'host']
         for tuple_key in tuple_keys:
-            tuple_val = None if tuple_key not in self.ac.parserargs else \
-                getattr(self.ac.parserargs, tuple_key)
+            tuple_val = None if not hasattr(self.ac.parserargs, tuple_key) \
+                else getattr(self.ac.parserargs, tuple_key)
             json_log[tuple_key] = tuple_val
 
         with open(self.ac.docker_state, 'w') as state_file:

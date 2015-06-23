@@ -20,6 +20,7 @@
 
 import docker
 import sys
+from image_scanner_client.image_scanner_client import ImageScannerClientError
 
 
 class Singleton(object):
@@ -65,16 +66,20 @@ class ApplicationConfiguration(Singleton):
         self.parserargs = parserargs
 
     def ValidateHost(self, host):
-
+        ''' Validates if the defined docker host is running'''
         try:
             client = docker.Client(base_url=host, timeout=10)
             if not client.ping():
                 raise(Exception)
         except Exception, err:
-            print 'Cannot connect to the Docker daemon. ' \
-                  'Is \'docker -d\' running on this host?'
-            sys.exit(1)
-
+            error = "Cannot connect to the Docker daemon. Is it running on " \
+                    "this host"
+            client = None
+            if not self.api:
+                print error
+                sys.exit(1)
+            else:
+                raise ImageScannerClientError
         return client
 
     def _print(self, msg):

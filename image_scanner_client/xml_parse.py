@@ -22,6 +22,7 @@
 import xml.etree.ElementTree as ET
 from collections import namedtuple
 from image_scanner_client import Client
+from image_scanner_client import ImageScannerClientError
 import urlparse
 import json
 
@@ -126,28 +127,108 @@ class ParseOvalXML(object):
             result_json = image_scanner.get_docker_json(docker_state_file)
         else:
             result_json = json.loads(open(docker_state_file).read())
-        print type(result_json)
         return result_json
 
-    def summarize_cves(self, cve_format_list, docker_state_file=None):
+    def summarize(self, result_file, docker_state_file=None):
         '''
-        Helper function to parse a summarize from a list
-        of cve tuples
+        takes a result.xml file and a docker state json file and
+        compares output to give an analysis of a given scan
         '''
+
         if docker_state_file is not None:
             docker_json = self._get_docker_state(docker_state_file)
 
-        summary = {}
+        summary = {'host': docker_json['host']}
+        summary['scan_time'] = docker_json['scan_time']
+
+        _root = self._get_root(result_file)
+
+        host_name = _root.find("{http://oval.mitre.org/XMLSchema/"
+                               "oval-results-5}results/"
+                               "{http://oval.mitre.org/XMLSchema/"
+                               "oval-results-5}system/"
+                               "{http://oval.mitre.org/XMLSchema/"
+                               "oval-system-characteristics-5}"
+                               "oval_system_characteristics/"
+                               "{http://oval.mitre.org/XMLSchema/"
+                               "oval-system-characteristics-5}system_info/"
+                               "{http://oval.mitre.org/XMLSchema/oval-system-"
+                               "characteristics-5}primary_host_name")
+
+        temp_array = host_name.text.split(":")
+        item_id = temp_array[1]
+
+        affected_image = 0
+        affected_children = []
+        is_image = self.is_id_an_image(docker_json, item_id)
+        if is_image:
+            affected_image = item_id
+            for containers in docker_json['docker_state'][affected_image]:
+                affected_children.append(containers['uuid'])
+        else:
+            for image_id in docker_json['docker_state']:
+                for containers in docker_json['docker_state'][image_id]:
+                    if item_id == containers['uuid']:
+                        affected_image = image_id
+            for containers in docker_json['docker_state'][affected_image]:
+                affected_children.append(containers['uuid'])
+
+        summary['image'] = affected_image
+        summary['containers'] = affected_children
+
+        scan_results = {}
+        cve_format_list = self.get_cve_info(result_file)
         for cve in cve_format_list:
-            if cve.severity not in summary:
-                summary[cve.severity] = {'num': 1, 'cves': [cve.cve]}
+            if cve.severity not in scan_results:
+                scan_results[cve.severity] = {'num': 1, 'cves': [cve.cve]}
             else:
-                summary[cve.severity]['num'] += 1
-                summary[cve.severity]['cves'].append([cve.cve])
+                scan_results[cve.severity]['num'] += 1
+                scan_results[cve.severity]['cves'].append(cve.cve)
+        summary['scan_results'] = scan_results
+
         return summary
 
-# FIXME
-# Would be nice to have the tuple or a summary function
-# that also associates things with docker information. For
-# example, if the source was an image, list all the possible
-# impacted container IDs.
+    def is_id_an_image(self, docker_json, item_id):
+        '''
+        helper function that uses the docker_state_file to validate if the
+        given item_id is a container or image id
+        '''
+
+        for image_id in docker_json['docker_state']:
+            if item_id == image_id:
+                return True
+            for containers in docker_json['docker_state'][image_id]:
+                if item_id == containers['uuid']:
+                    return False
+
+        # Item was not found in the docker state file
+        error_msg = 'The provided openscap xml result file was not generated' \
+                    ' from the same run as the docker state file '
+        raise ImageScannerClientError(error_msg)
+
+    def print_summary(self, summary):
+        '''
+        given the input of the dict that is returned from the summerize def,
+        this def will give a nice output to std out
+        '''
+
+        if summary['image'] is None or summary['containers'] is None:
+            raise ImageScannerClientError("Summary data is not initialized")
+
+        print "Time of Scan:"
+        print "  " + summary['scan_time']
+        print "Docker host:"
+        print "  " + summary['image']
+        print "Problematic image:"
+        print "  " + summary['image']
+        print "Affected containers: "
+        for container in summary['containers']:
+            print "  " + container
+        print "Susceptible CVEs:"
+        sev_list = {'Low', 'Moderate', 'Important', 'Critical'}
+        for sev in sev_list:
+            for key in summary['scan_results']:
+                if key == sev:
+                    print "  " + sev + ":"
+                    print "    ",
+                    print ', '.join(summary['scan_results'][sev]['cves'])

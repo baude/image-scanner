@@ -11,6 +11,7 @@ License: LGPLv2+
 URL: https://github.com/baude/image-scanner
 
 Requires: python-docker-py, python-flask, image-scanner-python-client
+Requires: uwsgi-plugin-python, uwsgi-plugin-common, python-psutil
 
 %description
 Scans images and containers looking for packages that have CVEs
@@ -31,6 +32,9 @@ make install DESTDIR=%{buildroot}
 %files python-client
 %doc README.md LICENSE
 %{python_sitelib}/image_scanner_client/*
+%dir %{_sysconfdir}/image-scanner/
+%config(noreplace) %{_sysconfdir}/image-scanner/image-scanner-client.conf
+%{_bindir}/image-scanner-remote.py
 
 %files
 %doc README.md LICENSE
@@ -39,7 +43,7 @@ make install DESTDIR=%{buildroot}
 %{python_sitelib}/image_scanner/*
 %{python_sitelib}/image_scanner-*.egg-info/*
 %dir %{_sysconfdir}/image-scanner/
-%config(noreplace) %{_sysconfdir}/image-scanner/*
+%config(noreplace) %{_sysconfdir}/image-scanner/image-scanner.conf
 
 
 %changelog

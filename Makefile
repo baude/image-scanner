@@ -8,6 +8,7 @@ install:
 	python setup.py install --root=$(DESTDIR)
 	mkdir -p $(DESTDIR)/etc/image-scanner
 	cp conf/image-scanner.conf $(DESTDIR)/etc/image-scanner
+	cp conf/image-scanner-client.conf $(DESTDIR)/etc/image-scanner
 
 clean:
 	rm -fvr packaging/image-scanner-*

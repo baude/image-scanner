@@ -25,6 +25,7 @@ from image_scanner_client import Client
 from image_scanner_client import ImageScannerClientError
 import urlparse
 import json
+import os
 
 
 class ParseOvalXML(object):
@@ -35,6 +36,9 @@ class ParseOvalXML(object):
                                          'cve', 'description'])
 
     result_list = []
+
+    def __init__(self):
+        self.local_basedir = None
 
     def _get_root(self, result_file):
         '''
@@ -127,16 +131,14 @@ class ParseOvalXML(object):
             result_json = image_scanner.get_docker_json(docker_state_file)
         else:
             result_json = json.loads(open(docker_state_file).read())
+            self.local_basedir = os.path.basename(docker_state_file)
         return result_json
 
-    def summarize(self, result_file, docker_state_file=None):
+    def _summarize_docker_object(self, result_file, docker_json):
         '''
         takes a result.xml file and a docker state json file and
         compares output to give an analysis of a given scan
         '''
-
-        if docker_state_file is not None:
-            docker_json = self._get_docker_state(docker_state_file)
 
         summary = {'host': docker_json['host']}
         summary['scan_time'] = docker_json['scan_time']
@@ -232,3 +234,19 @@ class ParseOvalXML(object):
                     print "  " + sev + ":"
                     print "    ",
                     print ', '.join(summary['scan_results'][sev]['cves'])
+
+    def summary(self, docker_state_file):
+        '''
+        Takes a URL or file pointer to the docker_state_file. If
+        the pointer is not http, it assumes that basedir of the
+        point also contains all the xml files
+        '''
+
+        docker_state_obj = self._get_docker_state(docker_state_file)
+
+        for scanned_obj in docker_state_obj['results_summary']:
+            xml_url = scanned_obj[scanned_obj.keys()[0]]['xml_url']
+            single_summary = self._summarize_docker_object(xml_url, docker_state_obj)
+            self.print_summary(single_summary)
+        
+       

@@ -18,6 +18,7 @@
 
 ''' Image Scanner remote client for command line '''
 from image_scanner_client import Client, ImageScannerClientError
+from xml_parse import ParseOvalXML
 import sys
 import ConfigParser
 import argparse
@@ -41,6 +42,7 @@ class RemoteScanner(object):
         host, port = self.get_profile_info(parseargs.profile)
         number = parseargs.number
         self.remote_client = Client(host, port, number)
+        self.xmlp = ParseOvalXML()
 
     def scan(self):
         ''' Executes the scan on the remote host'''
@@ -78,6 +80,17 @@ class RemoteScanner(object):
             sys.exit(1)
         return host, port
 
+    def _get_docker_state(self, summary):
+        docker_state = self.remote_client.get_docker_json(summary['json_url'])
+        return docker_state
+
+    def print_results(self, docker_state):
+        self.xmlp.summary(docker_state)
+        #for scanned_obj in docker_state['results_summary']:
+        #    xml_url = scanned_obj[scanned_obj.keys()[0]]['xml_url']
+        #    xml_et = self.remote_client.getxml(xml_url)
+        #    print self.xmlp.summarize(xml_et, docker_state)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Scan Utility for Containers')
     group = parser.add_mutually_exclusive_group()
@@ -107,4 +120,6 @@ if __name__ == '__main__':
         sys.exit(1)
 
     remotescan = RemoteScanner(args)
-    print remotescan.scan()
+    scansummary = remotescan.scan()
+    #docker_state = remotescan._get_docker_state(scansummary)
+    remotescan.print_results(scansummary['json_url'])

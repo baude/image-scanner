@@ -37,7 +37,8 @@ The image-scanner configuration file is located at /etc/image-scanner/image-scan
 ````
 Now you can run the image-scanner simply with the atomic command:
 ````
-[bbaude@localhost image-scanner]$ atomic run fedora-image-scannerdocker run -dt --privileged -v /proc/:/hostproc/ -v /sys/fs/cgroup:/sys/fs/cgroup -v /var/log:/var/log -v /tmp:/tmp -v /run:/run -v /var/lib/docker/devicemapper/metadata/:/var/lib/docker/devicemapper/metadata/ -v /dev/:/dev/ -v /etc/image-scanner/:/etc/image-scanner --env container=docker --net=host --cap-add=SYS_ADMIN --ipc=host fedora-image-scanner
+[bbaude@localhost image-scanner]$ atomic run fedora-image-scannerdocker
+run -dt --privileged -v /proc/:/hostproc/ -v /sys/fs/cgroup:/sys/fs/cgroup -v /var/log:/var/log -v /tmp:/tmp -v /run:/run -v /var/lib/docker/devicemapper/metadata/:/var/lib/docker/devicemapper/metadata/ -v /dev/:/dev/ -v /etc/image-scanner/:/etc/image-scanner --env container=docker --net=host --cap-add=SYS_ADMIN --ipc=host fedora-image-scanner
 acb44b0cb87cbcb94047a0c8e8873dcb451ebb927005afce2e8a77929cacdac2
 ````
 
@@ -52,7 +53,7 @@ CONTAINER ID        IMAGE                  COMMAND                CREATED       
 With the container ID, you can now use docker exec to 'enter' the container and run the image-scanner on the command line.
 
 ````
-[bbaude@localhost image-scanner]$ docker exec -it 31f34f95915d /bin/bash
+[bbaude@localhost image-scanner]$ atomic run 31f34f95915d /bin/bash
 [image-scanner]#  docker_scanner.py -i bef54
 
 Begin processing

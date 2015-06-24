@@ -22,6 +22,8 @@ import subprocess
 import ConfigParser
 import os
 import sys
+import signal
+import ctypes
 
 # FIXME
 # I'm not dead sure this is 100% a good idea, but in order
@@ -33,6 +35,19 @@ if os.geteuid() is not 0:
 
 conf_file = "/etc/image-scanner/image-scanner.conf"
 config = ConfigParser.RawConfigParser()
+
+
+libc = ctypes.CDLL('libc.so.6')
+PR_SET_PDEATHSIG = 1
+SIGINT = signal.SIGINT
+SIGTERM = signal.SIGTERM
+
+def set_death_signal(signal):
+    libc.prctl(PR_SET_PDEATHSIG, signal)
+
+def set_death_signal_int():
+    set_death_signal(SIGINT)
+
 
 try:
     # Check if we have a conf file
@@ -60,4 +75,4 @@ else:
 
 cmd = ['uwsgi', '--plugin', 'python,http', '--socket', host_port,
        '--protocol=http', '--wsgi-file', rest_py]
-subprocess.call(cmd)
+subprocess.call(cmd, preexec_fn=set_death_signal_int)

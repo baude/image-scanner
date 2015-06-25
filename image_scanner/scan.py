@@ -16,7 +16,6 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
-import docker
 import os
 import collections
 import time
@@ -28,6 +27,7 @@ import StringIO
 import shutil
 from applicationconfiguration import ApplicationConfiguration
 from docker_mount import DockerMount
+import rpm
 
 
 class Scan(object):
@@ -217,3 +217,16 @@ class Scan(object):
         shutil.rmtree(self.dest)
         logging.debug("Removing temporary tarball {0}"
                       .format(self.tb_location))
+
+    def _get_rpms(self):
+        chroot_os = os.path.join(self.dest, "rootfs")
+        ts = rpm.TransactionSet(chroot_os)
+        ts.setVSFlags((rpm._RPMVSF_NOSIGNATURES|rpm._RPMVSF_NODIGESTS))
+        image_rpms = []
+        for hdr in ts.dbMatch(): # No sorting
+            if hdr['name'] == 'gpg-pubkey':
+                continue
+            else:
+                foo ="{0}-{1}-{2}-{3}-{4}".format(hdr['name'], hdr['epochnum'], hdr['version'],hdr['release'], hdr['arch'])
+                image_rpms.append(foo)
+        return image_rpms

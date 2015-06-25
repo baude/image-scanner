@@ -182,10 +182,10 @@ class ParseOvalXML(object):
         cve_format_list = self.get_cve_info(result_file)
         for cve in cve_format_list:
             if cve.severity not in scan_results:
-                scan_results[cve.severity] = {'num': 1, 'cves': [cve.cve]}
+                scan_results[cve.severity] = {'num': 1, 'cves': [cve.title]}
             else:
                 scan_results[cve.severity]['num'] += 1
-                scan_results[cve.severity]['cves'].append(cve.cve)
+                scan_results[cve.severity]['cves'].append(cve.title)
         summary['scan_results'] = scan_results
 
         return summary
@@ -227,13 +227,21 @@ class ParseOvalXML(object):
         for container in summary['containers']:
             print "  " + container
         print "Susceptible CVEs:"
-        sev_list = {'Low', 'Moderate', 'Important', 'Critical'}
+        sev_list = ['Low', 'Moderate', 'Important', 'Critical']
         for sev in sev_list:
             for key in summary['scan_results']:
                 if key == sev:
-                    print "  " + sev + ":"
-                    print "    ",
-                    print ', '.join(summary['scan_results'][sev]['cves'])
+                    print "{0}{1}({2}):" \
+                        .format(" " * 2, sev,
+                                summary['scan_results'][sev]['num'])
+                    for cve in summary['scan_results'][sev]['cves']:
+                        # Lots of work to remove the (sev) from the title
+                        sev_gen = ("({0})".format(x) for x in sev_list)
+                        replace_val = (g_val for g_index, g_val in
+                                       enumerate(sev_gen) if g_val
+                                       in cve).next()
+                        print "{0}{1}".format(" " * 5,
+                                              cve.replace(replace_val, ""))
 
     def summary(self, docker_state_file):
         '''
@@ -249,7 +257,7 @@ class ParseOvalXML(object):
             _root = scanned_obj[scanned_obj.keys()[0]]
             _docker_id = str(scanned_obj.keys()[0])
             print "_docker_id: {0}".format(_docker_id)
-            
+
             scan_msg = None if 'msg' not in _root.keys() else _root['msg']
             # Check to see if the image was RHEL based or not
             if scan_msg is not None:
@@ -263,8 +271,6 @@ class ParseOvalXML(object):
                     # Dealing with local XMls
                     xml_location = os.path.join(self.local_reportdir,
                                                 _docker_id + ".xml")
-                single_summary = self._summarize_docker_object(xml_location,
-                                                               docker_state_obj)
-                self.print_summary(single_summary)
-        
-       
+                sing_sum = self._summarize_docker_object(xml_location,
+                                                         docker_state_obj)
+                self.print_summary(sing_sum)

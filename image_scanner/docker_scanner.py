@@ -128,6 +128,7 @@ class Worker(object):
                                         "com.redhat.rhsa-all.xml.bz2")
 
         self.scan_list = None
+        self.rpms = {}
 
     def set_procs(self, number):
 
@@ -321,6 +322,8 @@ class Worker(object):
         except subprocess.CalledProcessError:
             pass
 
+        image_rpms = f._get_rpms()
+        self.rpms[image] = image_rpms
         start = time.time()
         f.DM.cleanup(f.dm_results)
         logging.debug("Removing temporary chroot for image {0} completed in"
@@ -399,6 +402,7 @@ class Worker(object):
         json_log['scan_time'] = datetime.today().isoformat(' ')
         json_log['results_summary'] = self.ac.return_json
         json_log['docker_state_url'] = self.ac.json_url
+        json_log['image_rpms'] = self.rpms
         tuple_keys = ['rest_host', 'rest_port', 'allcontainers',
                       'allimages', 'images', 'logfile', 'number',
                       'reportdir', 'workdir', 'api', 'url_root',

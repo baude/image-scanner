@@ -121,8 +121,5 @@ if __name__ == '__main__':
 
     remotescan = RemoteScanner(args)
     scansummary = remotescan.scan()
-    print scansummary
-    for docker_obj in scansummary['results']:
-        print docker_obj.keys()[0]
-    #docker_state = remotescan._get_docker_state(scansummary)
-    #remotescan.print_results(scansummary['json_url'])
+    docker_state = remotescan._get_docker_state(scansummary)
+    remotescan.print_results(scansummary['json_url'])

@@ -18,11 +18,12 @@
 
 """Docker Mount Python API"""
 
-import docker
 import os
 import collections
 import subprocess
 import json
+import time
+import logging
 
 
 class DockerMountError(Exception):
@@ -247,6 +248,7 @@ class DockerMount(object):
         dm_proc = subprocess.Popen(cmd, stderr=subprocess.PIPE,
                                    stdout=subprocess.PIPE)
         out, err = dm_proc.communicate()
+
         return self.return_tuple(return_code=dm_proc.returncode,
                                  stderr=err, stdout=out)
 
@@ -366,11 +368,34 @@ class DockerMount(object):
         try:
             # umount the mnt_dir
             cmd = ['umount', return_info.mount_path]
-            make_unmount = self.subp(cmd)
-            if make_unmount.return_code is not 0:
-                raise DockerMountError("Unable to mount {0} due to {1}: "
-                                       .format(return_info.mount_path,
-                                               make_unmount.stderr))
+            mount_return_code = 1
+            umount_counter = 1
+            umount_max = 10
+            while (mount_return_code is not 0):
+                make_unmount = self.subp(cmd)
+                mount_return_code = make_unmount.return_code
+                if mount_return_code is not 0:
+                    logging.debug("Unable to unmount {0} on attempt {1} of "
+                                  "{2} due to {3}"
+                                  .format(return_info.mount_path,
+                                          umount_counter,
+                                          umount_max,
+                                          return_info.stderr))
+
+                time.sleep(1)
+                if umount_counter == umount_max:
+                    raise DockerMountError("Unable to mount {0} due to {1}: "
+                                           .format(return_info.mount_path,
+                                                   make_unmount.stderr))
+                    break
+
+            # Deprecated for above, but keeping temporarily
+            # FIXME; delete when ready
+
+            # if make_unmount.return_code is not 0:
+            #     raise DockerMountError("Unable to mount {0} due to {1}: "
+            #                            .format(return_info.mount_path,
+            #                                    make_unmount.stderr))
 
             remove_thin = self.remove_thin_device(return_info.thin_dev_name)
             if remove_thin.return_code is not 0:

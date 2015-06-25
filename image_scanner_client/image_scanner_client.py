@@ -123,3 +123,6 @@ class Client(requests.Session):
         result_json = json.loads(result.text)
         if 'Error' in result_json:
             raise ImageScannerClientError(result_json['Error'])
+
+        if 'results' in result_json.keys() and 'Error' in result_json['results']:
+            raise ImageScannerClientError(result_json['results']['Error'])

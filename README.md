@@ -53,7 +53,7 @@ CONTAINER ID        IMAGE                  COMMAND                CREATED       
 With the container ID, you can now use docker exec to 'enter' the container and run the image-scanner on the command line.
 
 ````
-[bbaude@localhost image-scanner]$ docker exec -it 31f34f95915d /bin/bash
+[bbaude@localhost image-scanner]$ atomic run 31f34f95915d /bin/bash
 [image-scanner]#  docker_scanner.py -i bef54
 
 Begin processing

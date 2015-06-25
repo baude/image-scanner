@@ -274,7 +274,6 @@ class Worker(object):
             if len(threading.enumerate()) < self.procs:
                 new_thread = threads.pop()
                 new_thread.start()
-                print new_thread.name
                 self._progress(float(self.threads_complete),
                                float(total_images))
         # Seeing some weirdness with the exit thread count
@@ -283,12 +282,13 @@ class Worker(object):
         if self.ac.api:
             exit_thread_count = 1
         else:
-            exit_thread_count = 2 
+            exit_thread_count = 2
 
         while len(threading.enumerate()) > exit_thread_count:
             self._progress(float(self.threads_complete), float(total_images))
             time.sleep(1)
             pass
+
         self._progress(float(self.threads_complete), float(total_images))
         self.ac._print("\n" * 2)
         self.output.report_summary()

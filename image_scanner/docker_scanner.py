@@ -59,6 +59,7 @@ class Singleton(object):
 class ContainerSearch(object):
 
     def __init__(self):
+        self.dead_cids = []
         self.ac = ApplicationConfiguration()
         self.cons = self.ac.conn.containers(all=True)
         self.active_containers = self.ac.conn.containers(all=False)
@@ -100,10 +101,13 @@ class ContainerSearch(object):
             inspect = self.ac.conn.inspect_container(cid)
             iid = inspect['Image']
             run = inspect['State']['Running']
+            dead = inspect['State']['Dead']
+            if dead:
+                self.dead_cids.append(cid)
             if iid not in fcons:
-                fcons[iid] = [{'uuid': cid, 'running': run}]
+                fcons[iid] = [{'uuid': cid, 'running': run, 'Dead': dead}]
             else:
-                fcons[iid].append({'uuid': cid, 'running': run})
+                fcons[iid].append({'uuid': cid, 'running': run, 'Dead': dead})
         return fcons
 
 
@@ -251,6 +255,10 @@ class Worker(object):
         threads = []
 
         for image in image_list:
+            if image in self.cs.dead_cids:
+                raise ImageScannerClientError("Scan not completed. Cannot "
+                                              "scan the dead "
+                                              "container {0}".format(image))
             cids = self._get_cids_for_image(self.cs, image)
             t = threading.Thread(target=self.search_containers, name=image,
                                  args=(image, cids, self.output,))
@@ -266,16 +274,17 @@ class Worker(object):
             if len(threading.enumerate()) < self.procs:
                 new_thread = threads.pop()
                 new_thread.start()
+                print new_thread.name
                 self._progress(float(self.threads_complete),
                                float(total_images))
         # Seeing some weirdness with the exit thread count
         # when using the API, depends on how it is called
 
-        # if self.ac.api:
-        #     exit_thread_count = 1
-        # else:
+        if self.ac.api:
+            exit_thread_count = 1
+        else:
+            exit_thread_count = 2 
 
-        exit_thread_count = 1
         while len(threading.enumerate()) > exit_thread_count:
             self._progress(float(self.threads_complete), float(total_images))
             time.sleep(1)
@@ -346,17 +355,24 @@ class Worker(object):
         logging.basicConfig(filename=self.args.logfile,
                             format='%(asctime)s %(levelname)-8s %(message)s',
                             datefmt='%m-%d %H:%M', level=logging.DEBUG)
-        if self.args.onlyactive:
-            self.onlyactive()
-        if self.args.allcontainers:
-            self.allcontainers()
-        if self.args.allimages:
-            self.allimages()
-        if self.args.images:
-            # Check to make sure we have  valid input
-            image_list = self._check_input(self.args.images)
-            self.list_of_images(image_list)
+        try:
+            if self.args.onlyactive:
+                self.onlyactive()
+            if self.args.allcontainers:
+                self.allcontainers()
+            if self.args.allimages:
+                self.allimages()
+            if self.args.images:
+                # Check to make sure we have  valid input
+                image_list = self._check_input(self.args.images)
+                self.list_of_images(image_list)
 
+        except ImageScannerClientError as scan_error:
+            if not self.ac.api:
+                print scan_error
+                sys.exit(1)
+            else:
+                return {'Error': str(scan_error)}, None
         end_time = time.time()
         duration = (end_time - start_time)
 

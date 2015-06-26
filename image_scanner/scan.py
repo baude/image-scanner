@@ -43,7 +43,7 @@ class Scan(object):
         self.list_of_CVEs = []
         self.con_uuids = con_uuids
         self.output = output
-        self.report_dir = os.path.join(self.ac.workdir, "openscap_reports")
+        self.report_dir = os.path.join(self.ac.workdir, "reports")
         if not os.path.exists(self.report_dir):
             os.mkdir(self.report_dir)
 

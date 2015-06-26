@@ -120,6 +120,8 @@ class Worker(object):
         self.args = args
         self.procs = self.set_procs(args.number)
         self.ac = ApplicationConfiguration(parserargs=args)
+        if not os.path.exists(self.ac.workdir):
+            os.makedirs(self.ac.workdir)
         self.cs = ContainerSearch()
         self.output = Reporter()
         self.cve_file = os.path.join(self.ac.workdir,
@@ -129,6 +131,7 @@ class Worker(object):
 
         self.scan_list = None
         self.rpms = {}
+
 
     def set_procs(self, number):
 
@@ -283,7 +286,7 @@ class Worker(object):
         if self.ac.api:
             exit_thread_count = 1
         else:
-            exit_thread_count = 2
+            exit_thread_count = 1
 
         while len(threading.enumerate()) > exit_thread_count:
             self._progress(float(self.threads_complete), float(total_images))
@@ -430,13 +433,13 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--number', help='number of processors to use',
                         type=int, default=None)
     parser.add_argument('-l', '--logfile', help='logfile to use',
-                        default="/tmp/openscap.log")
+                        default="/var/tmp/image-scanner/openscap.log")
     parser.add_argument('-r', '--reportdir', help='directory to store reports',
-                        default="/tmp")
+                        default="/var/tmp/image-scanner")
 
     parser.add_argument('-w', '--workdir', help='workdir to use, defaults "\
-                        "to /tmp',
-                        default="/tmp")
+                        "to /var/tmp/image-scanner',
+                        default="/var/tmp/image-scanner")
     parser.add_argument('--nocache', default=False, help='Do not cache "\
                         "anything',
                         action='store_true')

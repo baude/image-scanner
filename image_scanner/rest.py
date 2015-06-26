@@ -31,7 +31,7 @@ import ConfigParser
 from image_scanner_client.image_scanner_client import ImageScannerClientError
 import json
 
-application = flask.Flask(__name__, static_path='/tmp/')
+application = flask.Flask(__name__, static_path='/var/tmp/image-scanner/')
 # app.config.update(SERVER_NAME='127.0.0.1:5001')
 
 scan_args = ['allcontainers', 'allimages', 'images', 'logfile', 'nocache',
@@ -58,7 +58,7 @@ def create_tuple(in_args, url_root, rest_host, rest_port):
                             None else in_args.get('allimages'),
                             images=in_args.get('images') if
                             in_args.get('images') is not None else None,
-                            logfile="/tmp/openscap.log" if
+                            logfile="/var/tmp/image-scanner/openscap.log" if
                             in_args.get('logfile') is None else
                             in_args.get('logile'),
                             nocache=False if in_args.get('nocache') is None
@@ -67,9 +67,9 @@ def create_tuple(in_args, url_root, rest_host, rest_port):
                             int(in_args.get('number')),
                             onlyactive=False if in_args.get('onlyactive') is
                             None else in_args.get('onlyactive'),
-                            reportdir="/tmp" if in_args.get('reportdir') is
+                            reportdir="/var/tmp/image-scanner/" if in_args.get('reportdir') is
                             None else in_args.get('reportdir'),
-                            workdir="/tmp" if in_args.get('workdir') is None
+                            workdir="/var/tmp/image-scanner" if in_args.get('workdir') is None
                             else in_args.get('workdir'),
                             api=True,
                             url_root=url_root,
@@ -145,10 +145,10 @@ def not_found(error):
     return flask.make_response(flask.jsonify({'error': 'Not found'}), 404)
 
 
-@application.route('/openscap_reports/<path:path>')
+@application.route('/reports/<path:path>')
 def send_js(path):
-    ''' Returns a file from the openscap_reports dir '''
-    return send_from_directory('/tmp/openscap_reports', path)
+    ''' Returns a file from the reports dir '''
+    return send_from_directory('/var/tmp/image-scanner/reports/', path)
 
 
 def get_env_info():

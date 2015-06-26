@@ -30,7 +30,7 @@ class Reporter(object):
                                              'log, msg',)
         self.list_of_outputs = []
         self.appc = ApplicationConfiguration()
-        self.report_dir = os.path.join(self.appc.reportdir, "openscap_reports")
+        self.report_dir = os.path.join(self.appc.reportdir, "reports")
         self.appc.docker_state = os.path.join(self.report_dir,
                                               "docker_state.json")
 

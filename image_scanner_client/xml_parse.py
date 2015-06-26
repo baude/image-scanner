@@ -164,10 +164,12 @@ class ParseOvalXML(object):
         affected_children = []
         is_image = self.is_id_an_image(docker_json, item_id)
         if is_image:
+            summary['scanned_image'] = item_id
             affected_image = item_id
             for containers in docker_json['docker_state'][affected_image]:
                 affected_children.append(containers['uuid'])
         else:
+            summary['scanned_container'] = item_id
             for image_id in docker_json['docker_state']:
                 for containers in docker_json['docker_state'][image_id]:
                     if item_id == containers['uuid']:
@@ -213,21 +215,23 @@ class ParseOvalXML(object):
         given the input of the dict that is returned from the summerize def,
         this def will give a nice output to std out
         '''
-
         if summary['image'] is None or summary['containers'] is None:
             raise ImageScannerClientError("Summary data is not initialized")
 
-        print "Time of Scan:"
-        print "  " + summary['scan_time']
-        print "Docker host:"
-        print "  " + summary['host']
-        print "Problematic image:"
-        print "  " + summary['image']
+        print "Time of Scan:\n{0}{1}".format(" " * 2, summary['scan_time'])
+        print "Docker host:\n{0}{1}".format(" " * 2, summary['host'])
+
+        if (summary.has_key('scanned_container')):
+            print "Scanned container:\n{0}{1}".format(" " * 2, summary['scanned_container'])
+        else:
+            print "Scanned image:\n{0}{1}".format(" " * 2, summary['scanned_image'])
+
+        print "Base image:\n{0}{1}".format(" " * 2, summary['image'])
         print "Affected containers: "
         for container in summary['containers']:
-            print "  " + container
+            print "{0}{1}".format(" " * 2, container) 
         print "Susceptible CVEs:"
-        sev_list = ['Low', 'Moderate', 'Important', 'Critical']
+        sev_list = ['Critical', 'Important', 'Moderate', 'Low']
         for sev in sev_list:
             for key in summary['scan_results']:
                 if key == sev:

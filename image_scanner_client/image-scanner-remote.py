@@ -56,6 +56,9 @@ class RemoteScanner(object):
             if self.args.images:
                 return self.remote_client.scan_list(args.images)
 
+            if self.args.allimages:
+                return self.remote_client.scan_all_images()
+
         except ImageScannerClientError as remote_error:
             print remote_error
             sys.exit(1)

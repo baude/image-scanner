@@ -215,6 +215,8 @@ class ParseOvalXML(object):
         given the input of the dict that is returned from the summerize def,
         this def will give a nice output to std out
         '''
+        print "\n"
+
         if summary['image'] is None or summary['containers'] is None:
             raise ImageScannerClientError("Summary data is not initialized")
 
@@ -227,7 +229,7 @@ class ParseOvalXML(object):
             print "Scanned image:\n{0}{1}".format(" " * 2, summary['scanned_image'])
 
         print "Base image:\n{0}{1}".format(" " * 2, summary['image'])
-        print "Affected containers: "
+        print "Containers based on same image: "
         for container in summary['containers']:
             print "{0}{1}".format(" " * 2, container) 
         print "Susceptible CVEs:"
@@ -260,8 +262,6 @@ class ParseOvalXML(object):
         for scanned_obj in docker_state_obj['results_summary']:
             _root = scanned_obj[scanned_obj.keys()[0]]
             _docker_id = str(scanned_obj.keys()[0])
-            print "_docker_id: {0}".format(_docker_id)
-
             scan_msg = None if 'msg' not in _root.keys() else _root['msg']
             # Check to see if the image was RHEL based or not
             if scan_msg is not None:
@@ -270,7 +270,6 @@ class ParseOvalXML(object):
                 if self.local_reportdir is None:
                     # Dealing with remote XMls
                     xml_location = _root['xml_url']
-                    print "xml_location: {0}".format(xml_location)
                 else:
                     # Dealing with local XMls
                     xml_location = os.path.join(self.local_reportdir,

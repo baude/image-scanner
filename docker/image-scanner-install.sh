@@ -2,6 +2,8 @@
 
 IMAGE_DIR="/host/etc/image-scanner"
 IMAGE_CONF="image-scanner.conf"
+WORKDIR="/host/var/tmp/image-scanner"
+
 
 if [ ! -d ${IMAGE_DIR} ]; then
   echo "Creating directory /etc/image-scanner"
@@ -15,4 +17,8 @@ fi
 
 printf "\nThe image-scanner configuration file is located at /etc/image-scanner/image-scanner.conf with defaults.  You can change the port number and broadcasting IP in that file\n"
 cp /root/image-scanner/conf/${IMAGE_CONF} ${IMAGE_DIR}/
+
+if [ ! -d ${WORKDIR} ]; then
+  mkdir -p ${WORKDIR}
+fi
 

@@ -316,14 +316,14 @@ class Worker(object):
                               " completed in {1} seconds"
                               .format(image, t))
                 timeit.Timer(f.report_results).timeit(number=1)
+                image_rpms = f._get_rpms()
+                self.rpms[image] = image_rpms
             else:
                 # This is not a RHEL image or container
                 f._report_not_rhel(image)
         except subprocess.CalledProcessError:
             pass
 
-        image_rpms = f._get_rpms()
-        self.rpms[image] = image_rpms
         start = time.time()
         f.DM.cleanup(f.dm_results)
         logging.debug("Removing temporary chroot for image {0} completed in"

@@ -402,6 +402,8 @@ class Worker(object):
         json_log = {}
         json_log['scanned_content'] = self.scan_list
         json_log['docker_state'] = self.ac.fcons
+        json_log['host_images'] = [ image['Id'] for image in self.ac.images ]
+        json_log['host_containers'] = [ con['Id'] for con in self.ac.cons ]
         json_log['scan_time'] = datetime.today().isoformat(' ')
         json_log['results_summary'] = self.ac.return_json
         json_log['docker_state_url'] = self.ac.json_url

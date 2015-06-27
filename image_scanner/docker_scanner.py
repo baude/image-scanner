@@ -63,14 +63,17 @@ class ContainerSearch(object):
         self.ac = ApplicationConfiguration()
         self.cons = self.ac.conn.containers(all=True)
         self.active_containers = self.ac.conn.containers(all=False)
+        self.allimages = self.ac.conn.images(name=None, quiet=False,
+                                             all=True, viz=False)
         self.images = self.ac.conn.images(name=None, quiet=False,
-                                          all=True, viz=False)
+                                          all=False, viz=False)
+        self.allimagelist = self._returnImageList(self.allimages)
         self.imagelist = self._returnImageList(self.images)
         self.fcons = self._formatCons(self.cons)
         self.fcons_active = self._formatCons(self.active_containers)
         self.ac.fcons = self.fcons
         self.ac.cons = self.cons
-        self.ac.images = self.images
+        self.ac.allimages = self.allimages
         self.ac.return_json = []
 
     def _returnImageList(self, images):
@@ -131,7 +134,6 @@ class Worker(object):
 
         self.scan_list = None
         self.rpms = {}
-
 
     def set_procs(self, number):
 
@@ -215,7 +217,10 @@ class Worker(object):
                 sys.exit(1)
             else:
                 raise ImageScannerClientError(error)
-        self._do_work(self.cs.imagelist)
+        if self.args.allimages:
+            self._do_work(self.cs.allimagelist)
+        else:
+            self._do_work(self.cs.imagelist)
 
     def list_of_images(self, image_list):
         self._do_work(image_list)
@@ -366,11 +371,11 @@ class Worker(object):
                 self.onlyactive()
             if self.args.allcontainers:
                 self.allcontainers()
-            if self.args.allimages:
+            if self.args.allimages or self.args.images:
                 self.allimages()
-            if self.args.images:
-                # Check to make sure we have  valid input
-                image_list = self._check_input(self.args.images)
+            if self.args.scan:
+                # Check to make sure we have valid input
+                image_list = self._check_input(self.args.scan)
                 self.list_of_images(image_list)
 
         except ImageScannerClientError as scan_error:
@@ -402,8 +407,8 @@ class Worker(object):
         json_log = {}
         json_log['scanned_content'] = self.scan_list
         json_log['docker_state'] = self.ac.fcons
-        json_log['host_images'] = [ image['Id'] for image in self.ac.images ]
-        json_log['host_containers'] = [ con['Id'] for con in self.ac.cons ]
+        json_log['host_images'] = [image['Id'] for image in self.ac.allimages]
+        json_log['host_containers'] = [con['Id'] for con in self.ac.cons]
         json_log['scan_time'] = datetime.today().isoformat(' ')
         json_log['results_summary'] = self.ac.return_json
         json_log['docker_state_url'] = self.ac.json_url
@@ -424,13 +429,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Scan Utility for Containers')
     group = parser.add_mutually_exclusive_group()
 
+    group.add_argument('--images', help='search images', default=False,
+                       action='store_true')
     group.add_argument('--allimages', help='search all images', default=False,
                        action='store_true')
     group.add_argument('--onlyactive', help='search only active containers',
                        default=False, action='store_true')
     group.add_argument('--allcontainers', help='search all containers',
                        default=False, action='store_true')
-    group.add_argument('-i', '--images', help='image to search',
+    group.add_argument('-s', '--scan', help='image to search',
                        action='append')
     parser.add_argument('-n', '--number', help='number of processors to use',
                         type=int, default=None)

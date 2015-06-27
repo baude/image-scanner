@@ -380,7 +380,7 @@ class DockerMount(object):
                                   .format(return_info.mount_path,
                                           umount_counter,
                                           umount_max,
-                                          mount_return_code.stderr))
+                                          make_unmount.stderr))
 
                 time.sleep(1)
                 if umount_counter == umount_max:

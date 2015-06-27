@@ -61,6 +61,7 @@ class ApplicationConfiguration(Singleton):
         self.fcons = None
         self.cons = None
         self.images = None
+        self.allimages = None
         self.return_json = None
         self.conn = self.ValidateHost(parserargs.host)
         self.parserargs = parserargs

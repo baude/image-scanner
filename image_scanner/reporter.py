@@ -103,7 +103,7 @@ class Reporter(object):
     def _get_dtype(self, iid):
         ''' Returns whether the given id is an image or container '''
         # Images
-        for image in self.appc.images:
+        for image in self.appc.allimages:
             if image['Id'].startswith(iid):
                 return "Image"
         # Containers

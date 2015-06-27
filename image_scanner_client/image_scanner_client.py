@@ -60,15 +60,18 @@ class Client(requests.Session):
         if not isinstance(scan_list, list):
             raise ImageScannerClientError("You must pass input in list form")
         url = urlparse.urljoin(self.host, self.api_path + "/scan")
-        params = {'images': scan_list, 'number': self.num_threads}
+        params = {'scan': scan_list, 'number': self.num_threads}
         results = self._get_results(url, data=json.dumps(params))
         self._check_result(results)
         return json.loads(results.text)
 
-    def scan_all_images(self):
+    def scan_images(self, all=False):
         '''Scans all images and returns results in json'''
         url = urlparse.urljoin(self.host, self.api_path + "/scan")
-        params = {'allimages': True, 'number': self.num_threads}
+        if all:
+            params = {'allimages': True, 'number': self.num_threads}
+        else:
+            params = {'images': True, 'number': self.num_threads}
         results = self._get_results(url, data=json.dumps(params))
         self._check_result(results)
         return json.loads(results.text)

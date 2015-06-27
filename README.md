@@ -54,7 +54,7 @@ With the container ID, you can now use docker exec to 'enter' the container and 
 
 ````
 [bbaude@localhost image-scanner]$ atomic run 31f34f95915d /bin/bash
-[image-scanner]#  docker_scanner.py -i bef54
+[image-scanner]#  docker_scanner.py -s bef54
 
 Begin processing
 
@@ -70,7 +70,61 @@ Summary:
 
 Writing summary and reports to /tmp/openscap_reports
 ````
+#### Running the image-scanner using 'image-scanner-remote'
+We also provide a command line utility that allows you to scan both local and remote hosts and it provides a basic summarized response.  The command name is 'image-scanner-remote'.  Run the command with the --help switch to see its syntax.
 
+One very useful part of the image-scanner-remote tool is that it it has a switch where you can choose a profile defined in /etc/image-scanner/image-scanner-client.conf.  This allows you to simply switch from local host to another remote host and so on.  Here is an example of scanning an image on a remote, virtualized host.
+````
+[bbaude@localhost]$ image-scanner-remote.py --profile localhost -s bef54
+
+
+Time of Scan:
+  2015-06-27 09:08:14.022302
+Docker host:
+  unix://var/run/docker.sock
+Scanned image:
+  bef54b8f8a2fdd221734f1da404d4c0a7d07ee9169b1443a338ab54236c8c91a
+Base image:
+  bef54b8f8a2fdd221734f1da404d4c0a7d07ee9169b1443a338ab54236c8c91a
+Containers based on same image:
+  92b40036df6cde446374524f3a836e6a9433c310e9996625028c5f47f94f3ecf
+  1e30cf43682f90a3c5c337dfc80a5a89713eac84e0dd02e8003297283aa24ca3
+  69f2e0e235bcefa424a522d772612f82d927f9b2738e66f867478b1fb3fda431
+  16aa8e002c752d7bc6dbc16570266f3e606efa7435f8e8876088ca0156232e7c
+  d509243f9f575ae00db336ee9fe23c23cbf5a58a74e8cc1675f43d5c2eeef7ad
+  2afb7826ab2e3af1695b2275e9365dd5bd7653f0de74e2a59b61b4adb079abb9
+  2e8aef51d32e76ebf9002231110fcbbdd83cb37505cda13b04628a31777f47f2
+  87a04ca2741579666ff402ee2b9d116b1c2245c23ea47d98adf5a1095d21a225
+  4fcb771eacf273b78bb3eab799441fd7fc7be4202d0fc4e099ed01a2b29a80bf
+  73f0d6d0da0941a0803c05668e0ed14f160d6ce774b94b63d81af52c4f22c66b
+  06c507ed5d13ec6bc9dd47db739806754359b0f1d6c845e896429de1ffce4eac
+  b10ace4ded9a062f0ff8842cea104177bc073e10aa10c691b7546240f0852113
+  4f36b909b5ae9f1c352421c412a8070dcc4984baf81255347cf7ce7800bb388d
+Susceptible CVEs:
+  Critical(1):
+     RHSA-2015:0092: glibc security update
+  Important(4):
+     RHSA-2014:1976: rpm security update
+     RHSA-2014:1948: nss, nss-util, and nss-softokn security, bug fix, and enhancement update
+     RHSA-2014:1652: openssl security update
+     RHSA-2014:1110: glibc security update
+  Moderate(12):
+     RHSA-2015:1185: nss security update
+     RHSA-2015:1115: openssl security update
+     RHSA-2015:1072: openssl security update
+     RHSA-2015:0749: libxml2 security update
+     RHSA-2015:0716: openssl security and bug fix update
+     RHSA-2015:0439: krb5 security, bug fix and enhancement update
+     RHSA-2015:0327: glibc security and bug fix update
+     RHSA-2015:0066: openssl security update
+     RHSA-2014:2023: glibc security and bug fix update
+     RHSA-2014:1655: libxml2 security update
+     RHSA-2014:1052: openssl security update
+     RHSA-2014:0687: libtasn1 security update
+  Low(1):
+     RHSA-2015:0330: pcre security and enhancement update
+
+````
 
 ### Client API
 
@@ -87,10 +141,10 @@ Scan all containers and optionally declare if you want to scan only active conta
 ````
 foo =  image_scanner.scan_all_containers(onlyactive=True)
 ````
-#### scan_all_images
-Scan all images and return a JSON object.
+#### scan_images
+Scan images where scope is defined by an optional 'all' arguement.  When all is True, then it will scan all images including intermediate images (i.e. docker images -a).  Else it will scan a list of images similar to 'docker images'.
 ````
-foo = image_scanner.scan_all_images()
+foo = image_scanner.scan_all_images(all=False)
 ````
 #### scan_list
 Scan a list of containers or images.  The list can be container or image names or IDs.  A JSON object is returned.

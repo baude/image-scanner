@@ -29,14 +29,14 @@ import argparse
 import sys
 import ConfigParser
 from image_scanner_client.image_scanner_client import ImageScannerClientError
-import json
 
 application = flask.Flask(__name__, static_path='/var/tmp/image-scanner/')
 # app.config.update(SERVER_NAME='127.0.0.1:5001')
 
 scan_args = ['allcontainers', 'allimages', 'images', 'logfile', 'nocache',
              'number', 'onlyactive', 'reportdir',
-             'workdir', 'api', 'url_root', 'host', 'rest_host', 'rest_port']
+             'workdir', 'api', 'url_root', 'host', 'rest_host', 'rest_port',
+             'scan']
 
 scan_tuple = collections.namedtuple('Namespace', scan_args)
 
@@ -56,8 +56,10 @@ def create_tuple(in_args, url_root, rest_host, rest_port):
                             in_args.get('allcontainers'),
                             allimages=False if in_args.get('allimages') is
                             None else in_args.get('allimages'),
-                            images=in_args.get('images') if
-                            in_args.get('images') is not None else None,
+                            images=False if in_args.get('images') is
+                            None else in_args.get('images'),
+                            scan=in_args.get('scan') if
+                            in_args.get('scan') is not None else None,
                             logfile="/var/tmp/image-scanner/openscap.log" if
                             in_args.get('logfile') is None else
                             in_args.get('logile'),
@@ -67,9 +69,11 @@ def create_tuple(in_args, url_root, rest_host, rest_port):
                             int(in_args.get('number')),
                             onlyactive=False if in_args.get('onlyactive') is
                             None else in_args.get('onlyactive'),
-                            reportdir="/var/tmp/image-scanner/" if in_args.get('reportdir') is
+                            reportdir="/var/tmp/image-scanner/" if
+                            in_args.get('reportdir') is
                             None else in_args.get('reportdir'),
-                            workdir="/var/tmp/image-scanner" if in_args.get('workdir') is None
+                            workdir="/var/tmp/image-scanner" if
+                            in_args.get('workdir') is None
                             else in_args.get('workdir'),
                             api=True,
                             url_root=url_root,
@@ -122,13 +126,13 @@ def inspect_image():
 def scan():
     ''' Kicks off a scan via REST '''
     try:
-        port, host, dockerhost = get_env_info()  
+        port, host, dockerhost = get_env_info()
     except ConfigParser.NoSectionError:
         return jsonify({'Error': 'Unable to parse conf file'})
     arg_tup = create_tuple(request.json, request.url_root, host, port)
     try:
         worker = Worker(arg_tup)
-    except ImageScannerClientError as fail_docker:
+    except ImageScannerClientError:
         return jsonify({'Error': "Failed to connect to the docker host"})
     try:
         return_json, json_url = worker.start_application()
@@ -138,6 +142,7 @@ def scan():
                     'json_url': json_url,
                     'port': port,
                     'host': host})
+
 
 @application.errorhandler(404)
 def not_found(error):
@@ -154,7 +159,7 @@ def send_js(path):
 def get_env_info():
     conf_file = "/etc/image-scanner/image-scanner.conf"
     config = ConfigParser.RawConfigParser()
-    docker_host = "unix://var/run/docker.sock"
+    # docker_host = "unix://var/run/docker.sock"
     try:
         # Check if we have a conf file
         config.read(conf_file)

@@ -53,11 +53,14 @@ class RemoteScanner(object):
             if self.args.allcontainers:
                 return self.remote_client.scan_all_containers()
 
-            if self.args.images:
-                return self.remote_client.scan_list(args.images)
+            if self.args.scan:
+                return self.remote_client.scan_list(self.args.scan)
 
             if self.args.allimages:
-                return self.remote_client.scan_all_images()
+                return self.remote_client.scan_images(all=True)
+
+            if self.args.images:
+                return self.remote_client.scan_images(all=False)
 
         except ImageScannerClientError as remote_error:
             print remote_error
@@ -98,13 +101,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Scan Utility for Containers')
     group = parser.add_mutually_exclusive_group()
 
+    group.add_argument('--images', help='search images', default=False,
+                       action='store_true')
     group.add_argument('--allimages', help='search all images', default=False,
                        action='store_true')
     group.add_argument('--onlyactive', help='search only active containers',
                        default=False, action='store_true')
     group.add_argument('--allcontainers', help='search all containers',
                        default=False, action='store_true')
-    group.add_argument('-i', '--images', help='image to search',
+    group.add_argument('-s', '--scan', help='image to search',
                        action='append')
     parser.add_argument('-n', '--number', help='number of processors to use',
                         type=int, default=2)

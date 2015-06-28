@@ -39,6 +39,7 @@ class ParseOvalXML(object):
 
     def __init__(self):
         self.local_reportdir = None
+        self.host_name = None
 
     def _get_root(self, result_file):
         '''
@@ -118,6 +119,20 @@ class ParseOvalXML(object):
         '''
         _root = self._get_root(result_file)
         _id_list = self._get_list_cve_def_ids(_root)
+
+        host_name = _root.find("{http://oval.mitre.org/XMLSchema/"
+                               "oval-results-5}results/"
+                               "{http://oval.mitre.org/XMLSchema/"
+                               "oval-results-5}system/"
+                               "{http://oval.mitre.org/XMLSchema/"
+                               "oval-system-characteristics-5}"
+                               "oval_system_characteristics/"
+                               "{http://oval.mitre.org/XMLSchema/"
+                               "oval-system-characteristics-5}system_info/"
+                               "{http://oval.mitre.org/XMLSchema/oval-system-"
+                               "characteristics-5}primary_host_name")
+
+        self.host_name = host_name
         return self._get_cve_def_info(_id_list, _root)
 
     def _get_docker_state(self, docker_state_file):
@@ -161,51 +176,36 @@ class ParseOvalXML(object):
         summary = {'host': docker_json['host']}
         summary['scan_time'] = docker_json['scan_time']
 
-        _root = self._get_root(result_file)
+        self.cve_info = self.get_cve_info(result_file)
 
-        host_name = _root.find("{http://oval.mitre.org/XMLSchema/"
-                               "oval-results-5}results/"
-                               "{http://oval.mitre.org/XMLSchema/"
-                               "oval-results-5}system/"
-                               "{http://oval.mitre.org/XMLSchema/"
-                               "oval-system-characteristics-5}"
-                               "oval_system_characteristics/"
-                               "{http://oval.mitre.org/XMLSchema/"
-                               "oval-system-characteristics-5}system_info/"
-                               "{http://oval.mitre.org/XMLSchema/oval-system-"
-                               "characteristics-5}primary_host_name")
-
-        temp_array = host_name.text.split(":")
+        temp_array = self.host_name.text.split(":")
         item_id = temp_array[1]
 
-        # Possible FIXME below with using image-scanner-remote and --images/--allimages
-        # got 2 failures during testing, will inveestigate after B's xml_parse invasive changes
+        # Possible FIXME below with using image-scanner-remote
+        # and --images/--allimages
+        # got 2 failures during testing, will inveestigate after
+        # B's xml_parse invasive changes
         affected_image = 0
         affected_children = []
         is_image = self.is_id_an_image(docker_json, item_id)
         if is_image:
             summary['scanned_image'] = item_id
             affected_image = item_id
-            for containers in docker_json['docker_state'][affected_image]:
-                affected_children.append(containers['uuid'])
+            affected_children = self._process_image(affected_image,
+                                                    docker_json)
         else:
             summary['scanned_container'] = item_id
-            for image_id in docker_json['docker_state']:
-                for containers in docker_json['docker_state'][image_id]:
-                    if item_id == containers['uuid']:
-                        affected_image = image_id
-            for containers in docker_json['docker_state'][affected_image]:
-                affected_children.append(containers['uuid'])
+            affected_children, affected_image = \
+                self._process_container(docker_json, item_id)
 
         summary['image'] = affected_image
         summary['containers'] = affected_children
 
         scan_results = {}
-        cve_format_list = self.get_cve_info(result_file)
-        self.cve_info = self.get_cve_info(result_file)
-        for cve in cve_format_list:
+        for cve in self.cve_info:
             if cve.severity not in scan_results:
-                _cve_specifics = self._return_cve_dict_info(result_file, cve.title)
+                _cve_specifics = self._return_cve_dict_info(result_file,
+                                                            cve.title)
                 scan_results[cve.severity] = \
                     {'num': 1,
                      'cves': [_cve_specifics]}
@@ -213,8 +213,36 @@ class ParseOvalXML(object):
                 scan_results[cve.severity]['num'] += 1
                 scan_results[cve.severity]['cves'].append(_cve_specifics)
         summary['scan_results'] = scan_results
-        # print scan_results
         return summary
+
+    def _process_container(self, docker_json, item_id):
+        '''
+        Returns containers with the same base image
+        as a list
+        '''
+        affected_children = []
+        for image_id in docker_json['docker_state']:
+            for containers in docker_json['docker_state'][image_id]:
+                if item_id == containers['uuid']:
+                    base_image = image_id
+        for containers in docker_json['docker_state'][base_image]:
+            affected_children.append(containers['uuid'])
+
+        return affected_children, base_image
+
+    def _process_image(self, affected_image, docker_json):
+        '''
+        Returns containers with a given base
+        as a list
+        '''
+        affected_children = []
+        # Catch an image that has no containers
+        if affected_image not in docker_json['docker_state']:
+            return []
+        # It has children containers
+        for containers in docker_json['docker_state'][affected_image]:
+            affected_children.append(containers['uuid'])
+        return affected_children
 
     def is_id_an_image(self, docker_json, item_id):
         '''
@@ -234,29 +262,7 @@ class ParseOvalXML(object):
                     ' from the same run as the docker state file '
         raise ImageScannerClientError(error_msg)
 
-    def print_summary(self, summary):
-        '''
-        given the input of the dict that is returned from the summerize def,
-        this def will give a nice output to std out
-        '''
-        print "\n"
-
-        if summary['image'] is None or summary['containers'] is None:
-            raise ImageScannerClientError("Summary data is not initialized")
-
-        print "Time of Scan:\n{0}{1}".format(" " * 2, summary['scan_time'])
-        print "Docker host:\n{0}{1}".format(" " * 2, summary['host'])
-
-        if (summary.has_key('scanned_container')):
-            print "Scanned container:\n{0}{1}".format(" " * 2, summary['scanned_container'])
-        else:
-            print "Scanned image:\n{0}{1}".format(" " * 2, summary['scanned_image'])
-
-        print "Base image:\n{0}{1}".format(" " * 2, summary['image'])
-        print "Containers based on same image: "
-        for container in summary['containers']:
-            print "{0}{1}".format(" " * 2, container) 
-        print "Susceptible CVEs:"
+    def _iterate_severity(self, summary):
         sev_list = ['Critical', 'Important', 'Moderate', 'Low']
         for sev in sev_list:
             for key in summary['scan_results']:
@@ -265,8 +271,54 @@ class ParseOvalXML(object):
                         .format(" " * 2, sev,
                                 summary['scan_results'][sev]['num'])
                     for cve in summary['scan_results'][sev]['cves']:
-                        print "{0}{1} ({2})".format(" " * 4, 
-                              cve['cve_ref_id'], cve['rhsa_ref_id'])
+                        sev_gen = ("({0})".format(x) for x in sev_list)
+                        replace_val = (g_val for g_index, g_val in
+                                       enumerate(sev_gen) if g_val
+                                       in cve['cve_title']).next()
+                        print "{0}{1} {2}"\
+                              .format(" " * 4, cve['cve_ref_id'],
+                                      (cve['cve_title'].replace(replace_val,
+                                                                ""))
+                                      .split(':')[2].strip())
+
+    def print_summary(self, summary):
+        '''
+        given the input of the dict that is returned from the summerize def,
+        this def will give a nice output to std out
+        '''
+        print "\n"
+
+        # FIXME
+        # What were you trying to catch here?
+        # if summary['image'] is None or summary['containers'] is None:
+        #     raise ImageScannerClientError("Summary data is not initialized")
+
+        print "Time of Scan:\n{0}{1}".format(" " * 2, summary['scan_time'])
+        print "Docker host:\n{0}{1}".format(" " * 2, summary['host'])
+
+        if 'scanned_container' in summary:
+            print "Scanned container:\n{0}{1}"\
+                  .format(" " * 2, summary['scanned_container'])
+        else:
+            print "Scanned image:\n{0}{1}"\
+                  .format(" " * 2, summary['scanned_image'])
+
+        print "Base image:\n{0}{1}".format(" " * 2, summary['image'])
+
+        print "Containers based on same image: "
+        if len(summary['containers']) > 0:
+            for container in summary['containers']:
+                print "{0}{1}".format(" " * 2, container)
+        # If there are no children containers
+        # then print None
+        else:
+            print "{0}{1}".format(" " * 2, "None")
+
+        print "Susceptible CVEs:"
+        if len(summary['scan_results'].keys()) > 0:
+            self._iterate_severity(summary)
+        else:
+            print "None"
 
     def summary(self, docker_state_file):
         '''
@@ -276,15 +328,15 @@ class ParseOvalXML(object):
         '''
         docker_state_obj = self._get_docker_state(docker_state_file)
 
-        # Need to handle content in local dirs as well
-
         for scanned_obj in docker_state_obj['results_summary']:
             _root = scanned_obj[scanned_obj.keys()[0]]
             _docker_id = str(scanned_obj.keys()[0])
             scan_msg = None if 'msg' not in _root.keys() else _root['msg']
             # Check to see if the image was RHEL based or not
             if scan_msg is not None:
+                print "*******"
                 print scan_msg
+                print "*******"
             else:
                 if self.local_reportdir is None:
                     # Dealing with remote XMls

@@ -134,6 +134,24 @@ class ParseOvalXML(object):
             self.local_reportdir = os.path.dirname(docker_state_file)
         return result_json
 
+    def _return_cve_dict_info(self, result_file, title):
+        '''
+        Returns a dict containing the specific details of a cve which
+        includes title, rhsa/cve ref_ids and urls, cve number, and
+        description.
+        '''
+
+        cve_tuple = [cved for cved in self.cve_info if cved.title == title][0]
+        cve_dict_info = {'cve_title': cve_tuple.title,
+                         'cve_ref_id': cve_tuple.cve_ref_id,
+                         'cve_ref_url': cve_tuple.cve_ref_url,
+                         'rhsa_ref_id': cve_tuple.rhsa_ref_id,
+                         'rhsa_ref_url': cve_tuple.rhsa_ref_url,
+                         'cve': cve_tuple.cve
+                         }
+
+        return cve_dict_info
+
     def _summarize_docker_object(self, result_file, docker_json):
         '''
         takes a result.xml file and a docker state json file and
@@ -182,14 +200,18 @@ class ParseOvalXML(object):
 
         scan_results = {}
         cve_format_list = self.get_cve_info(result_file)
+        self.cve_info = self.get_cve_info(result_file)
         for cve in cve_format_list:
             if cve.severity not in scan_results:
-                scan_results[cve.severity] = {'num': 1, 'cves': [cve.title]}
+                _cve_specifics = self._return_cve_dict_info(result_file, cve.title)
+                scan_results[cve.severity] = \
+                    {'num': 1,
+                     'cves': [_cve_specifics]}
             else:
                 scan_results[cve.severity]['num'] += 1
-                scan_results[cve.severity]['cves'].append(cve.title)
+                scan_results[cve.severity]['cves'].append(_cve_specifics)
         summary['scan_results'] = scan_results
-
+        print scan_results
         return summary
 
     def is_id_an_image(self, docker_json, item_id):
@@ -197,6 +219,14 @@ class ParseOvalXML(object):
         helper function that uses the docker_state_file to validate if the
         given item_id is a container or image id
         '''
+
+        # print item_id
+        # print docker_json['docker_state']
+
+        # for image_id in docker_json['docker_state']:
+        #     print image_id
+        # import sys
+        # sys.exit(0)
 
         for image_id in docker_json['docker_state']:
             if item_id == image_id:

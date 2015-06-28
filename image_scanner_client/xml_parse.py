@@ -178,6 +178,8 @@ class ParseOvalXML(object):
         temp_array = host_name.text.split(":")
         item_id = temp_array[1]
 
+        # Possible FIXME below with using image-scanner-remote and --images/--allimages
+        # got 2 failures during testing, will inveestigate after B's xml_parse invasive changes
         affected_image = 0
         affected_children = []
         is_image = self.is_id_an_image(docker_json, item_id)
@@ -211,7 +213,7 @@ class ParseOvalXML(object):
                 scan_results[cve.severity]['num'] += 1
                 scan_results[cve.severity]['cves'].append(_cve_specifics)
         summary['scan_results'] = scan_results
-        print scan_results
+        # print scan_results
         return summary
 
     def is_id_an_image(self, docker_json, item_id):
@@ -220,19 +222,11 @@ class ParseOvalXML(object):
         given item_id is a container or image id
         '''
 
-        # print item_id
-        # print docker_json['docker_state']
-
-        # for image_id in docker_json['docker_state']:
-        #     print image_id
-        # import sys
-        # sys.exit(0)
-
-        for image_id in docker_json['docker_state']:
+        for image_id in docker_json['host_images']:
             if item_id == image_id:
                 return True
-            for containers in docker_json['docker_state'][image_id]:
-                if item_id == containers['uuid']:
+            for containers in docker_json['host_containers']:
+                if item_id == containers:
                     return False
 
         # Item was not found in the docker state file
@@ -271,13 +265,8 @@ class ParseOvalXML(object):
                         .format(" " * 2, sev,
                                 summary['scan_results'][sev]['num'])
                     for cve in summary['scan_results'][sev]['cves']:
-                        # Lots of work to remove the (sev) from the title
-                        sev_gen = ("({0})".format(x) for x in sev_list)
-                        replace_val = (g_val for g_index, g_val in
-                                       enumerate(sev_gen) if g_val
-                                       in cve).next()
-                        print "{0}{1}".format(" " * 5,
-                                              cve.replace(replace_val, ""))
+                        print "{0}{1} ({2})".format(" " * 4, 
+                              cve['cve_ref_id'], cve['rhsa_ref_id'])
 
     def summary(self, docker_state_file):
         '''

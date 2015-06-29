@@ -66,6 +66,7 @@ class ApplicationConfiguration(Singleton):
         self.conn = self.ValidateHost(parserargs.host)
         self.parserargs = parserargs
         self.json_url = None
+        self.os_release = None
 
     def ValidateHost(self, host):
         ''' Validates if the defined docker host is running'''

@@ -63,6 +63,7 @@ class Scan(object):
             return False
 
         self.os_release = open(etc_release_path).read()
+        self.ac.os_release = self.os_release
 
         rhel = 'Red Hat Enterprise Linux'
 

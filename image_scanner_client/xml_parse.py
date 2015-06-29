@@ -167,6 +167,13 @@ class ParseOvalXML(object):
 
         return cve_dict_info
 
+    def _get_os_release(self, docker_obj, item_id):
+        '''Simple function to grab the release for an item_id'''
+
+        for result in docker_obj['results_summary']:
+            if item_id in result:
+                return result[item_id]['os'].rstrip()
+
     def _summarize_docker_object(self, result_file, docker_json):
         '''
         takes a result.xml file and a docker state json file and
@@ -181,10 +188,7 @@ class ParseOvalXML(object):
         temp_array = self.host_name.text.split(":")
         item_id = temp_array[1]
 
-        # Possible FIXME below with using image-scanner-remote
-        # and --images/--allimages
-        # got 2 failures during testing, will inveestigate after
-        # B's xml_parse invasive changes
+        summary['os'] = self._get_os_release(docker_json, item_id)
         affected_image = 0
         affected_children = []
         is_image = self.is_id_an_image(docker_json, item_id)
@@ -304,7 +308,7 @@ class ParseOvalXML(object):
                   .format(" " * 2, summary['scanned_image'])
 
         print "Base image:\n{0}{1}".format(" " * 2, summary['image'])
-
+        print "RHEL release:\n{0}{1}".format(" " * 2, summary['os'])
         print "Containers based on same image: "
         if len(summary['containers']) > 0:
             for container in summary['containers']:
@@ -320,6 +324,17 @@ class ParseOvalXML(object):
         else:
             print "None"
 
+    def _print_non_RHEL(self, docker_state_obj, docker_id):
+        my_obj = "image"
+        print "\n"
+        print "Time of scan:\n{0}{1}".format(" " * 2,
+                                             docker_state_obj['scan_time'])
+        print "Docker host:\n{0}{1}".format(" " * 2, docker_state_obj['host'])
+        if not self.is_id_an_image(docker_state_obj, docker_id):
+            my_obj = "container"
+        print "Scanned {0} (Not RHEL-based, no scan performed):\n{1}{2}"\
+              .format(my_obj, " " * 2, docker_id)
+
     def summary(self, docker_state_file):
         '''
         Takes a URL or file pointer to the docker_state_file. If
@@ -334,9 +349,7 @@ class ParseOvalXML(object):
             scan_msg = None if 'msg' not in _root.keys() else _root['msg']
             # Check to see if the image was RHEL based or not
             if scan_msg is not None:
-                print "*******"
-                print scan_msg
-                print "*******"
+                self._print_non_RHEL(docker_state_obj, _docker_id)
             else:
                 if self.local_reportdir is None:
                     # Dealing with remote XMls
@@ -347,4 +360,5 @@ class ParseOvalXML(object):
                                                 _docker_id + ".xml")
                 sing_sum = self._summarize_docker_object(xml_location,
                                                          docker_state_obj)
+
                 self.print_summary(sing_sum)

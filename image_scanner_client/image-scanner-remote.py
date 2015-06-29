@@ -99,7 +99,7 @@ class RemoteScanner(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Scan Utility for Containers')
-    group = parser.add_mutually_exclusive_group()
+    group = parser.add_mutually_exclusive_group(required=True)
 
     group.add_argument('--images', help='search images', default=False,
                        action='store_true')

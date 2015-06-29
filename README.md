@@ -169,7 +169,14 @@ foo = image_scanner.get_xml("url")
 ### XML Parsing API
 This set of APIs helps transform the XML-based openscap reports into a form they desire.  It is a Python API as well.
 
-... to be continued
+#### get_cve_info
+This is a 'wrapper' function that takes a docker_state.json pointer (can be either a path or URL) and returns a list of tuples with the CVE information in them.
+
+````
+foo = xmlp.get_cve_info("http://localhost:5001/reports/docker_state.json")
+````
+#### summary
+Given a docker_state.json URL or path, creates and prints a summary report based on the scan.  The report is by image or container that was scanned.  
 
 ### Building RPMs from the git tree
 

@@ -386,13 +386,11 @@ class Worker(object):
                 return {'Error': str(scan_error)}, None
         end_time = time.time()
         duration = (end_time - start_time)
-
         if duration < 60:
             unit = "seconds"
         else:
             unit = "minutes"
             duration = duration / 60
-
         logging.info("Completed entire scan in {0} {1}".format(duration, unit))
         self.dump_json_log()
         if self.ac.api:
@@ -403,7 +401,6 @@ class Worker(object):
         Creates a log of information about the scan and what was
         scanned for post-scan analysis
         '''
-
         json_log = {}
         json_log['scanned_content'] = self.scan_list
         json_log['docker_state'] = self.ac.fcons

@@ -72,7 +72,6 @@ for result in scan_results['results']:
     if debug:
         debug_print(result_json)
 
-
 # If you prefer to just get a print out of the scan with
 # details, you can also simply use the summary function
 # in xml_parse which only needs a pointer to the the

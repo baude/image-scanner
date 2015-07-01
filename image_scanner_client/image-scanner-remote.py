@@ -17,10 +17,9 @@
 # Boston, MA 02111-1307, USA.
 
 ''' Image Scanner remote client for command line '''
-from image_scanner_client import Client, ImageScannerClientError
+from image_scanner_client import Client, ImageScannerClientError, ClientCommon
 from xml_parse import ParseOvalXML
 import sys
-import ConfigParser
 import argparse
 import os
 
@@ -39,7 +38,12 @@ class RemoteScanner(object):
                   "{0}".format(self.config_file)
 
         self.args = parseargs
-        host, port = self.get_profile_info(parseargs.profile)
+        client_common = ClientCommon()
+        try:
+            host, port = client_common.get_profile_info(parseargs.profile)
+        except ImageScannerClientError as common_error:
+            print common_error
+            sys.exit(1)
         number = parseargs.number
         self.remote_client = Client(host, port, number)
         self.xmlp = ParseOvalXML()
@@ -48,7 +52,7 @@ class RemoteScanner(object):
         ''' Executes the scan on the remote host'''
         try:
             if self.args.onlyactive:
-                self.remote_client.scan_all_containers(onlyactive=True)
+                return self.remote_client.scan_all_containers(onlyactive=True)
 
             if self.args.allcontainers:
                 return self.remote_client.scan_all_containers()
@@ -66,36 +70,16 @@ class RemoteScanner(object):
             print remote_error
             sys.exit(1)
 
-    def get_profile_info(self, profile):
-        ''' Looks for host and port based on the profile provided '''
-
-        config = ConfigParser.RawConfigParser()
-        config.read(self.config_file)
-        try:
-            port = config.get(profile, 'port')
-            host = config.get(profile, 'host')
-        except ConfigParser.NoSectionError:
-            print "The profile {0} cannot be found " \
-                  "in {1}".format(profile, self.config_file)
-            sys.exit(1)
-        except ConfigParser.NoOptionError as no_option:
-            print "No option {0} found in profile "\
-                  "{1} in {2}".format(no_option.option,
-                                      profile,
-                                      self.config_file)
-            sys.exit(1)
-        return host, port
-
     def _get_docker_state(self, summary):
         docker_state = self.remote_client.get_docker_json(summary['json_url'])
         return docker_state
 
     def print_results(self, docker_state):
         self.xmlp.summary(docker_state)
-        #for scanned_obj in docker_state['results_summary']:
-        #    xml_url = scanned_obj[scanned_obj.keys()[0]]['xml_url']
-        #    xml_et = self.remote_client.getxml(xml_url)
-        #    print self.xmlp.summarize(xml_et, docker_state)
+        # for scanned_obj in docker_state['results_summary']:
+        #     xml_url = scanned_obj[scanned_obj.keys()[0]]['xml_url']
+        #     xml_et = self.remote_client.getxml(xml_url)
+        #     print self.xmlp.summarize(xml_et, docker_state)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Scan Utility for Containers')

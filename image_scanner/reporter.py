@@ -59,25 +59,30 @@ class Reporter(object):
 
                 image_json[image.iid]['xml_url'] = \
                     baseurl + "/{0}.xml".format(image.iid)
-
+                image_json[image.iid]['xml_path'] = os.path.join(
+                    self.report_dir, image.iid + ".xml")
             if image.msg is None:
                 for cid in image.cid:
                     short_cid_list.append(cid[:12])
                 if self.appc.api:
                     image_json[image.iid]['cids'] = short_cid_list
-                self.appc._print("{0}OS: {1}".format(" " * 5, image.os.rstrip()))
+                self.appc._print("{0}OS: {1}"
+                                 .format(" " * 5, image.os.rstrip()))
                 if dtype is not "Container":
                     self.appc._print("{0}Containers affected "
-                          "({1}): {2}".format(" " * 5, len(short_cid_list),
-                                              ', '.join(short_cid_list)))
-                self.appc._print("{0}Results: Critical({1}) Important({2}) Moderate({3})"\
-                        " Low({4})".format(" " * 5, image.sevs['Critical'],
+                                     "({1}): {2}"
+                                     .format(" " * 5, len(short_cid_list),
+                                             ', '.join(short_cid_list)))
+                self.appc._print("{0}Results: Critical({1}) Important({2}) "
+                                 "Moderate({3}) Low({4})"
+                                 .format(" " * 5, image.sevs['Critical'],
                                          image.sevs['Important'],
                                          image.sevs['Moderate'],
                                          image.sevs['Low']))
                 if self.appc.api:
                     image_json[image.iid]['critical'] = image.sevs['Critical']
-                    image_json[image.iid]['important'] = image.sevs['Important']
+                    image_json[image.iid]['important'] = \
+                        image.sevs['Important']
                     image_json[image.iid]['moderate'] = image.sevs['Moderate']
                     image_json[image.iid]['low'] = image.sevs['Low']
                     image_json[image.iid]['os'] = self.appc.os_release
@@ -88,7 +93,7 @@ class Reporter(object):
                     image_json[image.iid]['msg'] = image.msg
                 self.appc._print("")
             if self.appc.api:
-                self.appc.return_json.append(image_json)
+                self.appc.return_json[image.iid] = image_json[image.iid]
         report_files = []
         for image in self.list_of_outputs:
             if image.msg is None:
@@ -97,7 +102,8 @@ class Reporter(object):
                 report_files.append(short_image)
                 out.write(image.log)
                 out.close
-        self.appc._print("Writing summary and reports to {0}".format(self.report_dir))
+        self.appc._print("Writing summary and reports to {0}"
+                         .format(self.report_dir))
         for report in report_files:
                 os.path.join(self.report_dir, report)
 

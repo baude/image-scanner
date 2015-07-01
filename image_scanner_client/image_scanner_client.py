@@ -22,6 +22,8 @@ import requests
 import urlparse
 import json
 import xml.etree.ElementTree as ET
+import ConfigParser
+import collections
 
 
 class ImageScannerClientError(Exception):
@@ -31,6 +33,7 @@ class ImageScannerClientError(Exception):
 
 class Client(requests.Session):
     ''' The image-scanner client API '''
+
     request_headers = {'content-type': 'application/json'}
 
     def __init__(self, host, port=5001, number=2):
@@ -42,6 +45,7 @@ class Client(requests.Session):
         self.host = "http://{0}:{1}" .format(host, port)
         self.api_path = "image-scanner/api"
         self.num_threads = number
+        self.client_common = ClientCommon()
 
     def scan_all_containers(self, onlyactive=False):
         ''' Scans all containers and returns results in json'''
@@ -127,5 +131,89 @@ class Client(requests.Session):
         if 'Error' in result_json:
             raise ImageScannerClientError(result_json['Error'])
 
-        if 'results' in result_json.keys() and 'Error' in result_json['results']:
+        if 'results' in result_json.keys() and 'Error' \
+                in result_json['results']:
             raise ImageScannerClientError(result_json['results']['Error'])
+
+
+class ClientCommon(object):
+    ''' Clients functions that are shared with other classes '''
+
+    config_file = "/etc/image-scanner/image-scanner-client.conf"
+    profile_tuple = collections.namedtuple('profiles', ['profile',
+                                                        'host',
+                                                        'port',
+                                                        'cert'])
+
+    def __init__(self):
+        pass
+
+    def get_profile_info(self, profile):
+        ''' Looks for host and port based on the profile provided '''
+
+        config = ConfigParser.RawConfigParser()
+        config.read(self.config_file)
+        try:
+            port = config.get(profile, 'port')
+            host = config.get(profile, 'host')
+        except ConfigParser.NoSectionError:
+            raise ImageScannerClientError("The profile {0} cannot be found "
+                                          "in {1}".format(profile,
+                                                          self.config_file))
+        except ConfigParser.NoOptionError as no_option:
+            print "No option {0} found in profile "\
+                  "{1} in {2}".format(no_option.option,
+                                      profile,
+                                      self.config_file)
+        return host, port
+
+    def return_all_profiles(self):
+        ''' Returns a list of tuples with host and port information '''
+
+        profile_list = []
+        config = ConfigParser.ConfigParser()
+        config.read(self.config_file)
+        for section in config.sections():
+            host, port = self.get_profile_info(section)
+            profile_list.append(self.profile_tuple(profile=section,
+                                                   host=host,
+                                                   port=port,
+                                                   cert=None))
+        return profile_list
+
+    def get_all_profile_names(self):
+        ''' Returns a list of all profile names '''
+
+        profile_names = []
+        all_profiles = self.return_all_profiles()
+        for profile in all_profiles:
+            profile_names.append(profile.profile)
+        return profile_names
+
+    # Still under development
+    def scan_multiple_hosts(self, profile_list, allimages=False,
+                            images=False, allcontainers=False,
+                            onlyactive=False):
+
+        # Check to make sure a scan type was selected
+        if not allimages and not images and not allcontainers \
+                and not onlyactive:
+                    raise ImageScannerClientError("You must select \
+                            a scan type")
+
+        # Check to make sure only one scan type was selected
+        if len([x for x in [allimages, images, allcontainers, onlyactive] if
+                x is True]) > 1:
+            raise ImageScannerClientError("You may only select one \
+                                           type of scan")
+        # Obtain list of profiles
+        profiles = self.return_all_profiles()
+
+        for profile in profiles:
+            print profile.profile
+            scanner = Client(profile.host, profile.port, number=4)
+            results = scanner.scan_all_containers(onlyactive=True)
+            print results
+
+    def debug_json(self, json_data):
+        print json.dumps(json_data, indent=4, separators=(',', ': '))

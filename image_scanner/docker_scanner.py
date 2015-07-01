@@ -32,10 +32,12 @@ from image_scanner.reporter import Reporter
 from image_scanner.scan import Scan
 from image_scanner.docker_mount import DockerMount, DockerMountError
 from image_scanner_client.image_scanner_client import ImageScannerClientError
+from image_scanner_client.xml_parse import ParseOvalXML
 import subprocess
 import psutil
 from datetime import datetime
 import json
+import platform
 
 
 class Singleton(object):
@@ -74,7 +76,7 @@ class ContainerSearch(object):
         self.ac.fcons = self.fcons
         self.ac.cons = self.cons
         self.ac.allimages = self.allimages
-        self.ac.return_json = []
+        self.ac.return_json = {}
 
     def _returnImageList(self, images):
         '''
@@ -173,7 +175,11 @@ class Worker(object):
         self.ac._print("Obtaining CVE file data from {0}".format(url))
 
         bar = urllib2.Request(url, "", hdr)
-        resp = urllib2.urlopen(bar)
+        try:
+            resp = urllib2.urlopen(bar)
+        except:
+            raise ImageScannerClientError("Unable to fetch CVE date from {0}"
+                                          .format(url))
         fh = open(self.cve_file_bz, "w")
         fh.write(resp.read())
         fh.close()
@@ -396,20 +402,27 @@ class Worker(object):
         if self.ac.api:
             return self.ac.return_json, self.ac.json_url
 
+    def _get_rpms_by_obj(self, docker_obj):
+        return self.rpms[docker_obj]
+
     def dump_json_log(self):
         '''
         Creates a log of information about the scan and what was
         scanned for post-scan analysis
         '''
+
+        xmlp = ParseOvalXML()
+        # Common Information
         json_log = {}
+        json_log['hostname'] = platform.node()
+        json_log['scan_time'] = datetime.today().isoformat(' ')
         json_log['scanned_content'] = self.scan_list
+        json_log['host_results'] = {}
         json_log['docker_state'] = self.ac.fcons
         json_log['host_images'] = [image['Id'] for image in self.ac.allimages]
         json_log['host_containers'] = [con['Id'] for con in self.ac.cons]
-        json_log['scan_time'] = datetime.today().isoformat(' ')
-        json_log['results_summary'] = self.ac.return_json
         json_log['docker_state_url'] = self.ac.json_url
-        json_log['image_rpms'] = self.rpms
+
         tuple_keys = ['rest_host', 'rest_port', 'allcontainers',
                       'allimages', 'images', 'logfile', 'number',
                       'reportdir', 'workdir', 'api', 'url_root',
@@ -419,8 +432,39 @@ class Worker(object):
                 else getattr(self.ac.parserargs, tuple_key)
             json_log[tuple_key] = tuple_val
 
+        # Per scanned obj information
+
+        for docker_obj in self.scan_list:
+            json_log['host_results'][docker_obj] = {}
+            tmp_obj = json_log['host_results'][docker_obj]
+            if 'msg' in self.ac.return_json[docker_obj].keys():
+                tmp_obj['isRHEL'] = False
+            else:
+                tmp_obj['rpms'] = self._get_rpms_by_obj(docker_obj)
+                tmp_obj['isRHEL'] = True
+                xml_path = self.ac.return_json[docker_obj]['xml_path']
+                tmp_obj['cve_summary'] = \
+                    xmlp._summarize_docker_object(xml_path,
+                                                  json_log, docker_obj)
+
+        # Pulling out good stuff from summary by docker object
+        for docker_obj in self.ac.return_json.keys():
+            if 'msg' not in self.ac.return_json[docker_obj].keys():
+                for key, value in self.ac.return_json[docker_obj].iteritems():
+                    json_log['host_results'][docker_obj][key] = value
+
+        # FIXME
+        # Decided to remove this from the JSON as it is considered to be
+        # duplicate.  Feel free to remove after some time.
+
+        # json_log['results_summary'] = self.ac.return_json
+
+        # DEBUG
+        # print  json.dumps(json_log, indent=4, separators=(',', ': '))
+
         with open(self.ac.docker_state, 'w') as state_file:
             json.dump(json_log, state_file)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Scan Utility for Containers')

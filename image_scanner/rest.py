@@ -129,7 +129,9 @@ def scan():
         port, host, dockerhost = get_env_info()
     except ConfigParser.NoSectionError:
         return jsonify({'Error': 'Unable to parse conf file'})
+
     arg_tup = create_tuple(request.json, request.url_root, host, port)
+
     try:
         worker = Worker(arg_tup)
     except ImageScannerClientError:

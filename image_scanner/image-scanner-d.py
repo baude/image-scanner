@@ -42,8 +42,10 @@ PR_SET_PDEATHSIG = 1
 SIGINT = signal.SIGINT
 SIGTERM = signal.SIGTERM
 
+
 def set_death_signal(signal):
     libc.prctl(PR_SET_PDEATHSIG, signal)
+
 
 def set_death_signal_int():
     set_death_signal(SIGINT)

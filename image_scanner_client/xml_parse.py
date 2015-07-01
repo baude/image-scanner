@@ -36,16 +36,23 @@ class ParseOvalXML(object):
                                          'cve', 'description'])
 
     result_list = []
+    BOLD = '\033[1m'
+    END = '\033[0m'
 
     def __init__(self):
         self.local_reportdir = None
         self.host_name = None
+        self.containers = None
+        self.images = None
 
+    # FIXME
+    # Deprecate
     def _get_root(self, result_file):
         '''
         Returns an ET object for the input XML which can be a file
         or a URL pointing to an xml file
         '''
+        print result_file
         if result_file.startswith("http://"):
             split_url = urlparse.urlsplit(result_file)
             image_scanner = Client(split_url.hostname, port=split_url.port)
@@ -54,6 +61,8 @@ class ParseOvalXML(object):
             result_tree = ET.parse(result_file)
         return result_tree.getroot()
 
+    # FIXME
+    # Deprecate
     def _get_list_cve_def_ids(self, _root):
         '''Returns a list of cve definition ids in the result file'''
         _def_id_list = []
@@ -67,6 +76,8 @@ class ParseOvalXML(object):
 
         return _def_id_list
 
+    # FIXME
+    # Deprecate
     def _get_cve_def_info(self, _def_id_list, _root):
         '''
         Returns a list of tuples that contain information about the
@@ -112,6 +123,8 @@ class ParseOvalXML(object):
 
         return cve_info_list
 
+    # FIXME
+    # Deprecate
     def get_cve_info(self, result_file):
         '''
         Wrapper function to return a list of tuples with
@@ -119,20 +132,6 @@ class ParseOvalXML(object):
         '''
         _root = self._get_root(result_file)
         _id_list = self._get_list_cve_def_ids(_root)
-
-        host_name = _root.find("{http://oval.mitre.org/XMLSchema/"
-                               "oval-results-5}results/"
-                               "{http://oval.mitre.org/XMLSchema/"
-                               "oval-results-5}system/"
-                               "{http://oval.mitre.org/XMLSchema/"
-                               "oval-system-characteristics-5}"
-                               "oval_system_characteristics/"
-                               "{http://oval.mitre.org/XMLSchema/"
-                               "oval-system-characteristics-5}system_info/"
-                               "{http://oval.mitre.org/XMLSchema/oval-system-"
-                               "characteristics-5}primary_host_name")
-
-        self.host_name = host_name
         return self._get_cve_def_info(_id_list, _root)
 
     def _get_docker_state(self, docker_state_file):
@@ -147,8 +146,11 @@ class ParseOvalXML(object):
         else:
             result_json = json.loads(open(docker_state_file).read())
             self.local_reportdir = os.path.dirname(docker_state_file)
+
         return result_json
 
+    # Deprecate
+    # FIXME
     def _return_cve_dict_info(self, result_file, title):
         '''
         Returns a dict containing the specific details of a cve which
@@ -167,6 +169,8 @@ class ParseOvalXML(object):
 
         return cve_dict_info
 
+    # Deprecate
+    # FIXME
     def _get_os_release(self, docker_obj, item_id):
         '''Simple function to grab the release for an item_id'''
 
@@ -174,24 +178,21 @@ class ParseOvalXML(object):
             if item_id in result:
                 return result[item_id]['os'].rstrip()
 
-    def _summarize_docker_object(self, result_file, docker_json):
+    # Deprecate
+    # FIXME
+    def _summarize_docker_object(self, result_file, docker_json, item_id):
         '''
         takes a result.xml file and a docker state json file and
         compares output to give an analysis of a given scan
         '''
 
-        summary = {'host': docker_json['host']}
-        summary['scan_time'] = docker_json['scan_time']
-
         self.cve_info = self.get_cve_info(result_file)
 
-        temp_array = self.host_name.text.split(":")
-        item_id = temp_array[1]
-
-        summary['os'] = self._get_os_release(docker_json, item_id)
         affected_image = 0
         affected_children = []
-        is_image = self.is_id_an_image(docker_json, item_id)
+        is_image = self.is_id_an_image(item_id, docker_json)
+
+        summary = {}
         if is_image:
             summary['scanned_image'] = item_id
             affected_image = item_id
@@ -207,9 +208,9 @@ class ParseOvalXML(object):
 
         scan_results = {}
         for cve in self.cve_info:
+            _cve_specifics = self._return_cve_dict_info(result_file,
+                                                        cve.title)
             if cve.severity not in scan_results:
-                _cve_specifics = self._return_cve_dict_info(result_file,
-                                                            cve.title)
                 scan_results[cve.severity] = \
                     {'num': 1,
                      'cves': [_cve_specifics]}
@@ -217,6 +218,7 @@ class ParseOvalXML(object):
                 scan_results[cve.severity]['num'] += 1
                 scan_results[cve.severity]['cves'].append(_cve_specifics)
         summary['scan_results'] = scan_results
+        self.debug_json(summary)
         return summary
 
     def _process_container(self, docker_json, item_id):
@@ -234,6 +236,7 @@ class ParseOvalXML(object):
 
         return affected_children, base_image
 
+    # Deprecate or rewrite
     def _process_image(self, affected_image, docker_json):
         '''
         Returns containers with a given base
@@ -248,24 +251,29 @@ class ParseOvalXML(object):
             affected_children.append(containers['uuid'])
         return affected_children
 
-    def is_id_an_image(self, docker_json, item_id):
+    def is_id_an_image(self, docker_id, docker_obj):
         '''
         helper function that uses the docker_state_file to validate if the
         given item_id is a container or image id
         '''
 
-        for image_id in docker_json['host_images']:
-            if item_id == image_id:
-                return True
-            for containers in docker_json['host_containers']:
-                if item_id == containers:
-                    return False
+        if self.containers is None or self.images is None:
+            self.containers = docker_obj['host_containers']
+            self.images = docker_obj['host_images']
 
-        # Item was not found in the docker state file
-        error_msg = 'The provided openscap xml result file was not generated' \
-                    ' from the same run as the docker state file '
-        raise ImageScannerClientError(error_msg)
+        if docker_id in self.images:
+            return True
+        elif docker_id in self.containers:
+            return False
+        else:
+            # Item was not found in the docker state file
+            error_msg = 'The provided openscap xml result file was ' \
+                        'not generated from the same run as the ' \
+                        'docker state file '
+            raise ImageScannerClientError(error_msg)
 
+    # Deprecate
+    # FIXME
     def _iterate_severity(self, summary):
         sev_list = ['Critical', 'Important', 'Moderate', 'Low']
         for sev in sev_list:
@@ -284,6 +292,8 @@ class ParseOvalXML(object):
                                       (cve['cve_title'].replace(replace_val,
                                                                 ""))
                                       .split(':')[2].strip())
+    # Deprecate
+    # FIXME
 
     def print_summary(self, summary):
         '''
@@ -322,8 +332,9 @@ class ParseOvalXML(object):
         if len(summary['scan_results'].keys()) > 0:
             self._iterate_severity(summary)
         else:
-            print "None"
+            print "{0}None".format(" " * 2)
 
+    # I think this should be deprecated
     def _print_non_RHEL(self, docker_state_obj, docker_id):
         my_obj = "image"
         print "\n"
@@ -335,30 +346,109 @@ class ParseOvalXML(object):
         print "Scanned {0} (Not RHEL-based, no scan performed):\n{1}{2}"\
               .format(my_obj, " " * 2, docker_id)
 
-    def summary(self, docker_state_file):
+    def _fprint(self, indent, key, space_indent, val):
+        ''' Pretty print helper function for formatting '''
+        print "{0}{1}:\n{2}{3}".format(indent, self._wrap_bold(key),
+                                       space_indent, val)
+
+    def _get_base_image(self, docker_state_obj, cid):
+        ''' Returns the base image for a container '''
+        for image in docker_state_obj['docker_state']:
+            for container in docker_state_obj['docker_state'][image]:
+                if container['uuid'] == cid:
+                    return image
+
+    def _wrap_bold(self, value):
+        ''' Wraps a string with bold ANSI markers '''
+        return "{0}{1}{2}".format(self.BOLD, value, self.END)
+
+    def _print_cve_info_by_sev(self, cve_obj):
+        '''
+        Helper function to print out cve information
+        '''
+        seven = " " * 7
+        ten = " " * 10
+
+        sev_list = ['Critical', 'Important', 'Moderate', 'Low']
+        cve_keys = cve_obj.keys()
+        for sev in sev_list:
+            if sev in cve_keys:
+                tmp_cve = cve_obj[sev]
+                print "{0}{1} ({2}):".format(seven, sev, tmp_cve['num'])
+                for cve in tmp_cve['cves']:
+                    sev_gen = ("({0})".format(x) for x in sev_list)
+                    replace_val = (g_val for g_index, g_val in
+                                   enumerate(sev_gen) if g_val in
+                                   cve['cve_title']).next()
+                    print "{0}{1}{2}".\
+                          format(ten, cve['cve_ref_id'],
+                                 cve['cve_title'].replace(replace_val, "").
+                                 split(':')[2].rstrip())
+
+    def pprint(self, docker_state_file):
+        '''
+        Pretty print the output from a single host's image-scanner
+        output.
+        '''
+        docker_state_obj = self._get_docker_state(docker_state_file)
+        two = " " * 2
+        five = " " * 5
+        seven = " " * 7
+
+        print "\n"
+        self._fprint("", 'Host', two, docker_state_obj['hostname'])
+        self._fprint(two, 'Scan Time', five, docker_state_obj['scan_time'])
+
+        for scanned_obj in docker_state_obj['host_results']:
+            print "\n"
+            tmp_obj = docker_state_obj['host_results'][scanned_obj]
+            scan_type = 'image' if self.is_id_an_image(scanned_obj, docker_state_obj) \
+                else 'container'
+            self._fprint(two, 'Scanned ' + scan_type, five, scanned_obj + "\n")
+            if not tmp_obj['isRHEL']:
+                # The OS is not RHEL, so skip to next item in the for loop
+                self._fprint(five, 'OS', seven, "Not RHEL")
+                continue
+            self._fprint(five, "OS", seven, tmp_obj['os'].rstrip())
+            if scan_type is 'container':
+                base_image = self._get_base_image(docker_state_obj,
+                                                  scanned_obj)
+                self._fprint(five, "Base Image", seven, base_image)
+
+            print "{0}{1}:".format(five,
+                                   self._wrap_bold('Containers based '
+                                                   'on same image'))
+            if len(tmp_obj['cve_summary']['containers']) > 0:
+                for container in tmp_obj['cve_summary']['containers']:
+                    print "{0}{1}".format(seven, container)
+            else:
+                print "{0}{1}".format(seven, 'None')
+
+            if len(tmp_obj['cve_summary']['scan_results'].keys()) > 0:
+                print "{0}{1}:".format(five, self._wrap_bold('CVEs found'))
+                self._print_cve_info_by_sev(
+                    tmp_obj['cve_summary']['scan_results'])
+
+    # I think this should be deprecated
+    def summary(self, docker_state_file, pprint=False, pprint_summary=False):
         '''
         Takes a URL or file pointer to the docker_state_file. If
         the pointer is not http, it assumes that reportdir of the
         point also contains all the xml files
         '''
-        docker_state_obj = self._get_docker_state(docker_state_file)
+        for scanned_obj in docker_state_obj['host_results']:
+            tmp_obj = docker_state_obj['host_results'][scanned_obj]
+            print tmp_obj['os']
 
-        for scanned_obj in docker_state_obj['results_summary']:
-            _root = scanned_obj[scanned_obj.keys()[0]]
-            _docker_id = str(scanned_obj.keys()[0])
-            scan_msg = None if 'msg' not in _root.keys() else _root['msg']
-            # Check to see if the image was RHEL based or not
-            if scan_msg is not None:
-                self._print_non_RHEL(docker_state_obj, _docker_id)
-            else:
-                if self.local_reportdir is None:
-                    # Dealing with remote XMls
-                    xml_location = _root['xml_url']
-                else:
-                    # Dealing with local XMls
-                    xml_location = os.path.join(self.local_reportdir,
-                                                _docker_id + ".xml")
-                sing_sum = self._summarize_docker_object(xml_location,
-                                                         docker_state_obj)
+    def debug_json(self, json_data):
+        ''' Pretty prints a json object for debug purposes '''
+        print json.dumps(json_data, indent=4, separators=(',', ': '))
 
-                self.print_summary(sing_sum)
+    def _get_rpms(self, docker_id):
+        '''
+        Given a docker_id for a container or image, returns a list
+        of RPMs in the docker object
+        '''
+
+        # Needs to be written
+        pass

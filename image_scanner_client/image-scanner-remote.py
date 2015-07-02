@@ -40,7 +40,8 @@ class RemoteScanner(object):
         self.args = parseargs
         client_common = ClientCommon()
         try:
-            host, port, number, cert = client_common.get_profile_info(parseargs.profile)
+            host, port, number, cert = \
+                client_common.get_profile_info(parseargs.profile)
         except ImageScannerClientError as common_error:
             print common_error
             sys.exit(1)
@@ -54,6 +55,15 @@ class RemoteScanner(object):
             if self.args.allprofiles:
                 multi_scan = ClientCommon(api=False)
                 profiles = multi_scan.return_all_profiles()
+
+                # Check to make sure REST and docker are
+                # running on each host
+
+                for profile in profiles:
+                    self.ping_host = profile.host
+                    ping_check = Client(profile.host, profile.port)
+                    ping_check.ping()
+
                 profile_list = [profile.profile for profile in profiles]
                 results = multi_scan.\
                     scan_multiple_hosts(profile_list,

@@ -29,6 +29,7 @@ import argparse
 import sys
 import ConfigParser
 from image_scanner_client.image_scanner_client import ImageScannerClientError
+import requests
 
 application = flask.Flask(__name__, static_path='/var/tmp/image-scanner/')
 # app.config.update(SERVER_NAME='127.0.0.1:5001')
@@ -120,6 +121,18 @@ def inspect_image():
     global connection
     inspect_data = connection.inspect_image(request.json['iid'])
     return jsonify(inspect_data)
+
+
+@application.route(os.path.join(rest_path, "ping"), methods=['GET'])
+def ping():
+    ''' Returns true if the docker host is alive '''
+    global connection
+    try:
+        connection.ping()
+        return jsonify({'results': True})
+    except requests.exceptions.ConnectionError:
+        return jsonify({'Error': 'Docker on the host does not appear '
+                        'to be running'})
 
 
 @application.route(os.path.join(rest_path, "scan"), methods=['GET'])

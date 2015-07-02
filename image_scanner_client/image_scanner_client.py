@@ -118,12 +118,16 @@ class Client(requests.Session):
                                           "at {0}".format(url))
         return json.loads(results.text)
 
-    def _get_results(self, url, data, headers=None):
+    def _get_results(self, url, data=None, headers=None):
         '''Wrapper functoin for calling the request.session.get'''
         headers = self.request_headers if headers is None else headers
         try:
-            results = self.get(url, data=data, headers=headers)
+            if data is not None:
+                results = self.get(url, data=data, headers=headers)
+            else:
+                results = self.get(url, headers=headers)
         except requests.exceptions.ConnectionError:
+            print "shits"
             raise ImageScannerClientError("Unable to connect to REST server "
                                           "at {0}".format(url))
         return results
@@ -136,6 +140,15 @@ class Client(requests.Session):
         if 'results' in result_json.keys() and 'Error' \
                 in result_json['results']:
             raise ImageScannerClientError(result_json['results']['Error'])
+
+    def ping(self):
+        url = urlparse.urljoin(self.host, self.api_path + "/ping")
+        results = self._get_results(url)
+        if 'results' not in json.loads(results.text):
+            error = json.loads(results.text)['error']
+            error = error.replace('on the host ', 'on the host {0} '
+                                  .format(self.host))
+            raise ImageScannerClientError(error)
 
 
 class ClientCommon(object):

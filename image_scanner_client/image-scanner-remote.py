@@ -40,7 +40,7 @@ class RemoteScanner(object):
         self.args = parseargs
         client_common = ClientCommon()
         try:
-            host, port = client_common.get_profile_info(parseargs.profile)
+            host, port, number, cert = client_common.get_profile_info(parseargs.profile)
         except ImageScannerClientError as common_error:
             print common_error
             sys.exit(1)
@@ -51,6 +51,18 @@ class RemoteScanner(object):
     def scan(self):
         ''' Executes the scan on the remote host'''
         try:
+            if self.args.allprofiles:
+                multi_scan = ClientCommon(api=False)
+                profiles = multi_scan.return_all_profiles()
+                profile_list = [profile.profile for profile in profiles]
+                results = multi_scan.\
+                    scan_multiple_hosts(profile_list,
+                                        allimages=self.args.allimages,
+                                        images=self.args.images,
+                                        allcontainers=self.args.allcontainers,
+                                        onlyactive=self.args.onlyactive)
+                return results
+
             if self.args.onlyactive:
                 return self.remote_client.scan_all_containers(onlyactive=True)
 
@@ -74,12 +86,8 @@ class RemoteScanner(object):
         docker_state = self.remote_client.get_docker_json(summary['json_url'])
         return docker_state
 
-    def print_results(self, docker_state):
-        self.xmlp.summary(docker_state)
-        # for scanned_obj in docker_state['results_summary']:
-        #     xml_url = scanned_obj[scanned_obj.keys()[0]]['xml_url']
-        #     xml_et = self.remote_client.getxml(xml_url)
-        #     print self.xmlp.summarize(xml_et, docker_state)
+    def print_results(self, json_url):
+        self.xmlp.pprint(json_url)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Scan Utility for Containers')
@@ -103,8 +111,14 @@ if __name__ == '__main__':
     parser.add_argument('--host', help='Host name or IP of the '
                         'image-scanner-d', default=None)
 
-    parser.add_argument('--profile', help='Profile from configuration file',
-                        default='localhost')
+    profile = parser.add_mutually_exclusive_group()
+
+    profile.add_argument('--profile', help='Profile from configuration file',
+                         default='localhost')
+    profile.add_argument('--allprofiles',
+                         help='Run the scanner on all profiles',
+                         default=False, action='store_true')
+
     args = parser.parse_args()
 
     if len(sys.argv) == 1:
@@ -113,5 +127,8 @@ if __name__ == '__main__':
 
     remotescan = RemoteScanner(args)
     scansummary = remotescan.scan()
-    docker_state = remotescan._get_docker_state(scansummary)
-    remotescan.print_results(scansummary['json_url'])
+    if not args.allprofiles:
+        remotescan.print_results(scansummary['json_url'])
+    else:
+        common = ClientCommon()
+        common.mult_host_mini_pprint(scansummary)

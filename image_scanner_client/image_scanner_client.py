@@ -24,6 +24,8 @@ import json
 import xml.etree.ElementTree as ET
 import ConfigParser
 import collections
+import os
+from multiprocessing.dummy import Pool as ThreadPool
 
 
 class ImageScannerClientError(Exception):
@@ -143,10 +145,18 @@ class ClientCommon(object):
     profile_tuple = collections.namedtuple('profiles', ['profile',
                                                         'host',
                                                         'port',
-                                                        'cert'])
+                                                        'cert',
+                                                        'number'])
+    client_dir = "/var/tmp/image-scanner/client"
 
-    def __init__(self):
-        pass
+    if not os.path.exists(client_dir):
+        os.mkdir(client_dir)
+
+    uber_file_path = os.path.join(client_dir, 'uber_docker.json')
+
+    def __init__(self, api=True):
+        self.uber_docker = {}
+        self.api = api
 
     def get_profile_info(self, profile):
         ''' Looks for host and port based on the profile provided '''
@@ -156,6 +166,10 @@ class ClientCommon(object):
         try:
             port = config.get(profile, 'port')
             host = config.get(profile, 'host')
+            cert = None if not config.has_option(profile, 'cert') else \
+                config.get(profile, 'cert')
+            number = 2 if not config.has_option(profile, 'threads') else \
+                config.get(profile, 'threads')
         except ConfigParser.NoSectionError:
             raise ImageScannerClientError("The profile {0} cannot be found "
                                           "in {1}".format(profile,
@@ -165,7 +179,7 @@ class ClientCommon(object):
                   "{1} in {2}".format(no_option.option,
                                       profile,
                                       self.config_file)
-        return host, port
+        return host, port, number, cert
 
     def return_all_profiles(self):
         ''' Returns a list of tuples with host and port information '''
@@ -174,11 +188,13 @@ class ClientCommon(object):
         config = ConfigParser.ConfigParser()
         config.read(self.config_file)
         for section in config.sections():
-            host, port = self.get_profile_info(section)
+            host, port, number, cert = self.get_profile_info(section)
             profile_list.append(self.profile_tuple(profile=section,
                                                    host=host,
                                                    port=port,
-                                                   cert=None))
+                                                   cert=None,
+                                                   number=number
+                                                   ))
         return profile_list
 
     def get_all_profile_names(self):
@@ -190,11 +206,32 @@ class ClientCommon(object):
             profile_names.append(profile.profile)
         return profile_names
 
-    # Still under development
+    def thread_profile_wrapper(self, args):
+        ''' Simple wrapper for thread_profiles '''
+        return self.thread_profiles(*args)
+
+    def thread_profiles(self, profile, onlyactive, allcontainers,
+                        allimages, images):
+        ''' Kicks off a scan of for a remote host'''
+        scanner = Client(profile.host, profile.port, number=4)
+        if onlyactive:
+            results = scanner.scan_all_containers(onlyactive=True)
+        elif allcontainers:
+            results = scanner.scan_all_containers()
+        elif allimages:
+            results = scanner.scan_images(all=True)
+        else:
+            results = scanner.scan_images()
+
+        host_state = scanner.get_docker_json(results['json_url'])
+        self.uber_docker[profile.profile] = host_state
+        if not self.api:
+            print "Scan for {0} complete".format(profile.profile)
+
     def scan_multiple_hosts(self, profile_list, allimages=False,
                             images=False, allcontainers=False,
                             onlyactive=False):
-
+        ''' Scan multiple hosts '''
         # Check to make sure a scan type was selected
         if not allimages and not images and not allcontainers \
                 and not onlyactive:
@@ -208,12 +245,72 @@ class ClientCommon(object):
                                            type of scan")
         # Obtain list of profiles
         profiles = self.return_all_profiles()
+        all_profile_names = [profile.profile for profile in profiles]
 
-        for profile in profiles:
-            print profile.profile
-            scanner = Client(profile.host, profile.port, number=4)
-            results = scanner.scan_all_containers(onlyactive=True)
-            print results
+        # Check profile names are valid
+        self._check_profile_is_valid(all_profile_names, profile_list)
+
+        # FIXME
+        # Make this a variable based on desired number
+        pool = ThreadPool(4)
+        pool.map(self.thread_profile_wrapper,
+                 [(x, onlyactive, allcontainers,
+                   allimages, images) for x in profiles])
+
+        with open(self.uber_file_path, 'w') as state_file:
+            json.dump(self.uber_docker, state_file)
+
+        return self.uber_docker
 
     def debug_json(self, json_data):
+        ''' Debug function that pretty prints json objects'''
         print json.dumps(json_data, indent=4, separators=(',', ': '))
+
+    def _check_profile_is_valid(self, all_profile_names, profile_list):
+        ''' Checks a list of profiles to make sure they are valid '''
+        for profile in profile_list:
+            if profile not in all_profile_names:
+                raise ImageScannerClientError("Profile {0} is invalid"
+                                              .format(profile))
+
+    def load_uber(self, uber_file_path):
+        ''' Loads the uber json file'''
+        uber_obj = json.loads(open(self.uber_file_path).read())
+        return uber_obj
+
+    def _sum_cves(self, scan_results_obj):
+        ''' Returns the total number of CVEs found'''
+        num_cves = 0
+        sev_list = ['Critical', 'Important', 'Moderate', 'Low']
+        for sev in sev_list:
+            if sev in scan_results_obj.keys():
+                num_cves += scan_results_obj[sev]['num']
+        return num_cves
+
+    def mult_host_mini_pprint(self, uber_obj):
+        ''' Pretty print the results of a multi host scan'''
+        print "\n"
+        print "{0:16} {1:15} {2:12}".format("Host", "Docker ID", "Results")
+        print "-" * 50
+        prev_host = None
+        for host in uber_obj.keys():
+            for scan_obj in uber_obj[host]['scanned_content']:
+                tmp_obj = uber_obj[host]['host_results'][scan_obj]
+                isRHEL = tmp_obj['isRHEL']
+                if isRHEL:
+                    if len(tmp_obj['cve_summary']['scan_results'].keys()) < 1:
+                        result = "Clean"
+                    else:
+                        num_cves = self._sum_cves(tmp_obj['cve_summary']
+                                                  ['scan_results'])
+                        result = "Has {0} CVEs".format(num_cves)
+                else:
+                    result = "Not based on RHEL"
+                if host is not prev_host:
+                    out_host = host
+                    prev_host = host
+                else:
+                    out_host = ""
+                print "{0:16} {1:15} {2:12}".format(out_host, scan_obj[:12],
+                                                    result)
+            print ""

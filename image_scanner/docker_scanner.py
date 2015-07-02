@@ -106,7 +106,10 @@ class ContainerSearch(object):
             inspect = self.ac.conn.inspect_container(cid)
             iid = inspect['Image']
             run = inspect['State']['Running']
-            dead = inspect['State']['Dead']
+            if 'Dead' in inspect['State']:
+                dead = inspect['State']['Dead']
+            else:
+                dead = False
             if dead:
                 self.dead_cids.append(cid)
             if iid not in fcons:
@@ -398,8 +401,8 @@ class Worker(object):
             unit = "minutes"
             duration = duration / 60
         logging.info("Completed entire scan in {0} {1}".format(duration, unit))
-        self.dump_json_log()
         if self.ac.api:
+            self.dump_json_log()
             return self.ac.return_json, self.ac.json_url
 
     def _get_rpms_by_obj(self, docker_obj):

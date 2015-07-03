@@ -444,11 +444,23 @@ class ParseOvalXML(object):
         ''' Pretty prints a json object for debug purposes '''
         print json.dumps(json_data, indent=4, separators=(',', ': '))
 
-    def _get_rpms(self, docker_id):
+    def _get_rpms(self, docker_state_file):
         '''
-        Given a docker_id for a container or image, returns a list
-        of RPMs in the docker object
+        given a docker_state_file this will return a dict with the
+        below format
+        {image_id : [rpms]}
+        if the image is not rhel based, the rpms list will be empty
         '''
-
-        # Needs to be written
-        pass
+        docker_state = self._get_docker_state(docker_state_file)
+        summerized_state = {}
+        for i in docker_state['host_results']:
+            summerized_state[i] = []
+            tmp_sum = summerized_state[i]
+            tmp_dock = docker_state['host_results'][i]
+            if not tmp_dock['isRHEL']:
+                tmp_sum = []
+            else:
+                rpm_list = []
+                rpm_list = docker_state['host_results'][i]['rpms']
+                summerized_state[i] = rpm_list
+        return summerized_state

@@ -31,8 +31,8 @@ from image_scanner.applicationconfiguration import ApplicationConfiguration
 from image_scanner.reporter import Reporter
 from image_scanner.scan import Scan
 from image_scanner.docker_mount import DockerMount, DockerMountError
+from image_scanner.generate_summary import Create_Summary
 from image_scanner_client.image_scanner_client import ImageScannerClientError
-from image_scanner_client.xml_parse import ParseOvalXML
 import subprocess
 import psutil
 from datetime import datetime
@@ -414,7 +414,7 @@ class Worker(object):
         scanned for post-scan analysis
         '''
 
-        xmlp = ParseOvalXML()
+        xmlp = Create_Summary()
         # Common Information
         json_log = {}
         json_log['hostname'] = platform.node()

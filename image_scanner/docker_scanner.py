@@ -413,7 +413,6 @@ class Worker(object):
         Creates a log of information about the scan and what was
         scanned for post-scan analysis
         '''
-
         xmlp = ParseOvalXML()
         # Common Information
         json_log = {}
@@ -464,7 +463,6 @@ class Worker(object):
 
         # DEBUG
         # print  json.dumps(json_log, indent=4, separators=(',', ': '))
-
         with open(self.ac.docker_state, 'w') as state_file:
             json.dump(json_log, state_file)
 

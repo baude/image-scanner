@@ -26,6 +26,8 @@ import ConfigParser
 import collections
 import os
 from multiprocessing.dummy import Pool as ThreadPool
+import sys
+import time
 
 
 class ImageScannerClientError(Exception):
@@ -127,7 +129,6 @@ class Client(requests.Session):
             else:
                 results = self.get(url, headers=headers)
         except requests.exceptions.ConnectionError:
-            print "shits"
             raise ImageScannerClientError("Unable to connect to REST server "
                                           "at {0}".format(url))
         return results
@@ -170,6 +171,8 @@ class ClientCommon(object):
     def __init__(self, api=True):
         self.uber_docker = {}
         self.api = api
+        self.num_complete = 0
+        self.num_total = 0
 
     def get_profile_info(self, profile):
         ''' Looks for host and port based on the profile provided '''
@@ -238,13 +241,18 @@ class ClientCommon(object):
 
         host_state = scanner.get_docker_json(results['json_url'])
         self.uber_docker[profile.profile] = host_state
-        if not self.api:
-            print "Scan for {0} complete".format(profile.profile)
+        self.num_complete += 1
+        # if not self.api:
+        #     print "Scan for {0} complete".format(profile.profile)
 
     def scan_multiple_hosts(self, profile_list, allimages=False,
                             images=False, allcontainers=False,
                             onlyactive=False):
-        ''' Scan multiple hosts '''
+        '''
+        Scan multiple hosts and returns an uber-docker object
+        which is basically an object with one or more docker
+        state objects in it.
+        '''
         # Check to make sure a scan type was selected
         if not allimages and not images and not allcontainers \
                 and not onlyactive:
@@ -260,8 +268,14 @@ class ClientCommon(object):
         profiles = self.return_all_profiles()
         all_profile_names = [profile.profile for profile in profiles]
 
+        self.num_total = len(all_profile_names)
+
         # Check profile names are valid
         self._check_profile_is_valid(all_profile_names, profile_list)
+        print ""
+        import threading
+        t = threading.Thread(target=self._progress)
+        t.start()
 
         # FIXME
         # Make this a variable based on desired number
@@ -270,10 +284,20 @@ class ClientCommon(object):
                  [(x, onlyactive, allcontainers,
                    allimages, images) for x in profiles])
 
+        # Print one last progress bar so it is 100% complete
+        sys.stdout.write("\r[{0:20s}] {1}%    {2}/{3}".format('#' * int(float(self.num_complete) / float(self.num_total) * 20), int(self.num_complete / self.num_total * 100), int(self.num_complete), int(self.num_total)))
         with open(self.uber_file_path, 'w') as state_file:
             json.dump(self.uber_docker, state_file)
 
         return self.uber_docker
+
+    def _progress(self):
+        ''' Prints progress bar based on the status of a multi scan '''
+        while self.num_complete < self.num_total:
+            sys.stdout.write("\r[{0:20s}] {1}%    {2}/{3}".format('#' * int(float(self.num_complete) / float(self.num_total) * 20), int(self.num_complete / self.num_total * 100), int(self.num_complete), int(self.num_total)))
+            sys.stdout.flush()
+            time.sleep(1)
+
 
     def debug_json(self, json_data):
         ''' Debug function that pretty prints json objects'''

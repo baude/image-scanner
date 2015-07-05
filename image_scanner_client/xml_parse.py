@@ -52,7 +52,6 @@ class ParseOvalXML(object):
         Returns an ET object for the input XML which can be a file
         or a URL pointing to an xml file
         '''
-        print result_file
         if result_file.startswith("http://"):
             split_url = urlparse.urlsplit(result_file)
             image_scanner = Client(split_url.hostname, port=split_url.port)
@@ -218,7 +217,7 @@ class ParseOvalXML(object):
                 scan_results[cve.severity]['num'] += 1
                 scan_results[cve.severity]['cves'].append(_cve_specifics)
         summary['scan_results'] = scan_results
-        self.debug_json(summary)
+        # self.debug_json(summary)
         return summary
 
     def _process_container(self, docker_json, item_id):
@@ -444,11 +443,19 @@ class ParseOvalXML(object):
         ''' Pretty prints a json object for debug purposes '''
         print json.dumps(json_data, indent=4, separators=(',', ': '))
 
-    def _get_rpms(self, docker_id):
+    def _get_rpms(self, docker_state_file):
         '''
-        Given a docker_id for a container or image, returns a list
-        of RPMs in the docker object
+        Given a docker_state_file this will return a dict with the rpms
+        for all images in the docker_state_file. The return dict will have
+        the format {image_id : [rpms]}, if the image is not rhel 
+        based, the rpms list will be empty
         '''
-
-        # Needs to be written
-        pass
+        docker_state = self._get_docker_state(docker_state_file)
+        rpm_dict = {}
+        for i in docker_state['host_results']:
+            rpm_dict[i] = []
+            if not docker_state['host_results'][i]['isRHEL']:
+                rpm_dict[i] = []
+            else:
+                rpm_dict[i] = docker_state['host_results'][i]['rpms']
+        return rpm_dict

@@ -40,6 +40,7 @@ class Create_Summary(object):
     def __init__(self):
         self.containers = None
         self.images = None
+        self.cve_info = None
 
     def _get_root(self, result_file):
         '''
@@ -121,7 +122,7 @@ class Create_Summary(object):
         _id_list = self._get_list_cve_def_ids(_root)
         return self._get_cve_def_info(_id_list, _root)
 
-    def _return_cve_dict_info(self, result_file, title):
+    def _return_cve_dict_info(self, title):
         '''
         Returns a dict containing the specific details of a cve which
         includes title, rhsa/cve ref_ids and urls, cve number, and
@@ -167,8 +168,7 @@ class Create_Summary(object):
 
         scan_results = {}
         for cve in self.cve_info:
-            _cve_specifics = self._return_cve_dict_info(result_file,
-                                                        cve.title)
+            _cve_specifics = self._return_cve_dict_info(cve.title)
             if cve.severity not in scan_results:
                 scan_results[cve.severity] = \
                     {'num': 1,

@@ -49,6 +49,7 @@ port = None
 
 
 def create_tuple(in_args, url_root, rest_host, rest_port):
+    ''' Creates a tuple as input for the tuple class'''
     global scan_args
     global scan_tuple
     global docker_host
@@ -194,8 +195,8 @@ if __name__ == '__main__':
     # I'm not dead sure this is 100% a good idea, but in order
     # to avoid issues....
     if os.geteuid() is not 0:
-            print "rest must be run as root"
-            sys.exit(1)
+        print "rest must be run as root"
+        sys.exit(1)
 
     parser = argparse.ArgumentParser(description='Scan Utility for Containers')
     parser.add_argument('-i', '--hostip', help='host IP to run on',

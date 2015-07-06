@@ -105,7 +105,7 @@ class Reporter(object):
         self.appc._print("Writing summary and reports to {0}"
                          .format(self.report_dir))
         for report in report_files:
-                os.path.join(self.report_dir, report)
+            os.path.join(self.report_dir, report)
 
     def _get_dtype(self, iid):
         ''' Returns whether the given id is an image or container '''

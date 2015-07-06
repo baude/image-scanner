@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Copyright (C) 2015 Brent Baude <bbaude@redhat.com>
 #
+''' Image scanner API '''
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
 # License as published by the Free Software Foundation; either
@@ -16,7 +17,6 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
-''' Image scanner API '''
 
 import requests
 import urlparse
@@ -133,7 +133,13 @@ class Client(requests.Session):
                                           "at {0}".format(url))
         return results
 
-    def _check_result(self, result):
+    @staticmethod
+    def _check_result(result):
+        '''
+        Examines a json object looking for a key of 'Error'
+        which indicates the previous call did not work.  Raises
+        an exception upon finding the key
+        '''
         result_json = json.loads(result.text)
         if 'Error' in result_json:
             raise ImageScannerClientError(result_json['Error'])
@@ -143,10 +149,19 @@ class Client(requests.Session):
             raise ImageScannerClientError(result_json['results']['Error'])
 
     def ping(self):
+        '''
+        Throws an exception if it cannot access the REST server or
+        the docker host
+        '''
         url = urlparse.urljoin(self.host, self.api_path + "/ping")
         results = self._get_results(url)
         if 'results' not in json.loads(results.text):
-            error = json.loads(results.text)['error']
+            tmp_obj = json.loads(results.text)
+            if hasattr(tmp_obj, 'error'):
+                error = getattr(tmp_obj, 'error')
+            else:
+                error = tmp_obj['Error']
+
             error = error.replace('on the host ', 'on the host {0} '
                                   .format(self.host))
             raise ImageScannerClientError(error)
@@ -173,6 +188,11 @@ class ClientCommon(object):
         self.api = api
         self.num_complete = 0
         self.num_total = 0
+
+    @staticmethod
+    def debug_json(json_data):
+        ''' Debug function that pretty prints json objects'''
+        print json.dumps(json_data, indent=4, separators=(',', ': '))
 
     def get_profile_info(self, profile):
         ''' Looks for host and port based on the profile provided '''
@@ -210,7 +230,8 @@ class ClientCommon(object):
                                                    port=port,
                                                    cert=None,
                                                    number=number
-                                                   ))
+                                                   )
+                                )
         return profile_list
 
     def get_all_profile_names(self):
@@ -227,41 +248,43 @@ class ClientCommon(object):
         return self.thread_profiles(*args)
 
     def thread_profiles(self, profile, onlyactive, allcontainers,
-                        allimages, images):
+                        allimages, images, remote_threads=4):
         ''' Kicks off a scan of for a remote host'''
-        scanner = Client(profile.host, profile.port, number=4)
-        if onlyactive:
-            results = scanner.scan_all_containers(onlyactive=True)
-        elif allcontainers:
-            results = scanner.scan_all_containers()
-        elif allimages:
-            results = scanner.scan_images(all=True)
-        else:
-            results = scanner.scan_images()
+        scanner = Client(profile.host, profile.port, number=remote_threads)
+        try:
+            if onlyactive:
+                results = scanner.scan_all_containers(onlyactive=True)
+            elif allcontainers:
+                results = scanner.scan_all_containers()
+            elif allimages:
+                results = scanner.scan_images(all=True)
+            else:
+                results = scanner.scan_images()
+        except ImageScannerClientError as scan_error:
+            results = json.dumps({'error': str(scan_error)})
 
-        host_state = scanner.get_docker_json(results['json_url'])
+        host_state = results if 'error' in results else \
+            scanner.get_docker_json(results['json_url'])
         self.uber_docker[profile.profile] = host_state
         self.num_complete += 1
         # if not self.api:
         #     print "Scan for {0} complete".format(profile.profile)
 
-    def scan_multiple_hosts(self, profile_list, allimages=False,
-                            images=False, allcontainers=False,
-                            onlyactive=False):
+    def scan_multiple_hosts(self, profile_list, args):
         '''
         Scan multiple hosts and returns an uber-docker object
         which is basically an object with one or more docker
         state objects in it.
         '''
         # Check to make sure a scan type was selected
-        if not allimages and not images and not allcontainers \
-                and not onlyactive:
-                    raise ImageScannerClientError("You must select \
-                            a scan type")
+        if not args.allimages and not args.images and not args.allcontainers \
+                and not args.onlyactive:
+            raise ImageScannerClientError("You must select \
+                                          a scan type")
 
         # Check to make sure only one scan type was selected
-        if len([x for x in [allimages, images, allcontainers, onlyactive] if
-                x is True]) > 1:
+        if len([x for x in [args.allimages, args.images, args.allcontainers,
+                            args.onlyactive] if x is True]) > 1:
             raise ImageScannerClientError("You may only select one \
                                            type of scan")
         # Obtain list of profiles
@@ -274,18 +297,22 @@ class ClientCommon(object):
         self._check_profile_is_valid(all_profile_names, profile_list)
         print ""
         import threading
-        t = threading.Thread(target=self._progress)
-        t.start()
+        progress_thread = threading.Thread(target=self._progress)
+        progress_thread.start()
 
         # FIXME
         # Make this a variable based on desired number
         pool = ThreadPool(4)
         pool.map(self.thread_profile_wrapper,
-                 [(x, onlyactive, allcontainers,
-                   allimages, images) for x in profiles])
+                 [(x, args.onlyactive, args.allcontainers,
+                   args.allimages, args.images) for x in profiles])
 
         # Print one last progress bar so it is 100% complete
-        sys.stdout.write("\r[{0:20s}] {1}%    {2}/{3}".format('#' * int(float(self.num_complete) / float(self.num_total) * 20), int(self.num_complete / self.num_total * 100), int(self.num_complete), int(self.num_total)))
+        sys.stdout.write("\r[{0:20s}] {1}%    {2}/{3}"
+                         .format('#' * int(float(self.num_complete) /
+                                 float(self.num_total) * 20),
+                                 int(self.num_complete / self.num_total * 100),
+                                 int(self.num_complete), int(self.num_total)))
         with open(self.uber_file_path, 'w') as state_file:
             json.dump(self.uber_docker, state_file)
 
@@ -294,28 +321,30 @@ class ClientCommon(object):
     def _progress(self):
         ''' Prints progress bar based on the status of a multi scan '''
         while self.num_complete < self.num_total:
-            sys.stdout.write("\r[{0:20s}] {1}%    {2}/{3}".format('#' * int(float(self.num_complete) / float(self.num_total) * 20), int(self.num_complete / self.num_total * 100), int(self.num_complete), int(self.num_total)))
+            sys.stdout.write("\r[{0:20s}] {1}%    {2}/{3}"
+                             .format('#' * int(float(self.num_complete) /
+                                     float(self.num_total) * 20),
+                                     int(self.num_complete / self.num_total *
+                                         100), int(self.num_complete),
+                                     int(self.num_total)))
             sys.stdout.flush()
             time.sleep(1)
 
-
-    def debug_json(self, json_data):
-        ''' Debug function that pretty prints json objects'''
-        print json.dumps(json_data, indent=4, separators=(',', ': '))
-
-    def _check_profile_is_valid(self, all_profile_names, profile_list):
+    @staticmethod
+    def _check_profile_is_valid(all_profile_names, profile_list):
         ''' Checks a list of profiles to make sure they are valid '''
         for profile in profile_list:
             if profile not in all_profile_names:
                 raise ImageScannerClientError("Profile {0} is invalid"
                                               .format(profile))
 
-    def load_uber(self, uber_file_path):
+    def load_uber(self):
         ''' Loads the uber json file'''
         uber_obj = json.loads(open(self.uber_file_path).read())
         return uber_obj
 
-    def _sum_cves(self, scan_results_obj):
+    @staticmethod
+    def _sum_cves(scan_results_obj):
         ''' Returns the total number of CVEs found'''
         num_cves = 0
         sev_list = ['Critical', 'Important', 'Moderate', 'Low']
@@ -331,10 +360,15 @@ class ClientCommon(object):
         print "-" * 50
         prev_host = None
         for host in uber_obj.keys():
+            if 'error' in uber_obj[host]:
+                print "{0:16} {1:15} {2:12}"\
+                    .format(host, "", json.loads(uber_obj[host])['error'])
+                print ""
+                continue
             for scan_obj in uber_obj[host]['scanned_content']:
                 tmp_obj = uber_obj[host]['host_results'][scan_obj]
-                isRHEL = tmp_obj['isRHEL']
-                if isRHEL:
+                is_rhel = tmp_obj['isRHEL']
+                if is_rhel:
                     if len(tmp_obj['cve_summary']['scan_results'].keys()) < 1:
                         result = "Clean"
                     else:

@@ -48,6 +48,7 @@ class RemoteScanner(object):
         number = parseargs.number
         self.remote_client = Client(host, port, number)
         self.xmlp = ParseOvalXML()
+        self.ping_host = None
 
     def scan(self):
         ''' Executes the scan on the remote host'''
@@ -66,11 +67,7 @@ class RemoteScanner(object):
 
                 profile_list = [profile.profile for profile in profiles]
                 results = multi_scan.\
-                    scan_multiple_hosts(profile_list,
-                                        allimages=self.args.allimages,
-                                        images=self.args.images,
-                                        allcontainers=self.args.allcontainers,
-                                        onlyactive=self.args.onlyactive)
+                    scan_multiple_hosts(profile_list, self.args)
                 return results
 
             if self.args.onlyactive:
@@ -93,10 +90,12 @@ class RemoteScanner(object):
             sys.exit(1)
 
     def _get_docker_state(self, summary):
+        ''' Returns the docker-state_file using the summary as input '''
         docker_state = self.remote_client.get_docker_json(summary['json_url'])
         return docker_state
 
     def print_results(self, json_url):
+        ''' Pretty print call to dump results'''
         self.xmlp.pprint(json_url)
 
 if __name__ == '__main__':
@@ -120,6 +119,8 @@ if __name__ == '__main__':
                         type=int, default=5001)
     parser.add_argument('--host', help='Host name or IP of the '
                         'image-scanner-d', default=None)
+    parser.add_argument('-r', '--remote_threads', help='The number of remote '
+                        'hosts to scan simultaneously', default=4)
 
     profile = parser.add_mutually_exclusive_group()
 

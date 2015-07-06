@@ -41,9 +41,11 @@ import platform
 
 
 class Singleton(object):
+    ''' Simple Singleton class for variable assignments'''
     _instance = None
 
     def __new__(cls, *args, **kwargs):
+        ''' Creates new instance '''
         if cls._instance is None:
             instance = super(Singleton, cls).__new__(cls)
             instance._singleton_init(*args, **kwargs)
@@ -51,6 +53,7 @@ class Singleton(object):
         return cls._instance
 
     def __init__(self, *args, **kwargs):
+        ''' Fake init def '''
         pass
 
     def _singleton_init(self, *args, **kwargs):
@@ -59,7 +62,7 @@ class Singleton(object):
 
 
 class ContainerSearch(object):
-
+    ''' Does a series of docker queries to setup variables '''
     def __init__(self):
         self.dead_cids = []
         self.ac = ApplicationConfiguration()
@@ -92,8 +95,6 @@ class ContainerSearch(object):
         return il
 
     def _formatCons(self, cons):
-
-        # Changed, this needs fixing
         '''
         Returns a formatted dictionary of containers by
         image id like:

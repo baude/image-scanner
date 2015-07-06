@@ -79,7 +79,8 @@ class ParseOvalXML(object):
         print "{0}{1}:\n{2}{3}".format(indent, self._wrap_bold(key),
                                        space_indent, val)
 
-    def _get_base_image(self, docker_state_obj, cid):
+    @staticmethod
+    def _get_base_image(docker_state_obj, cid):
         ''' Returns the base image for a container '''
         for image in docker_state_obj['docker_state']:
             for container in docker_state_obj['docker_state'][image]:
@@ -90,7 +91,8 @@ class ParseOvalXML(object):
         ''' Wraps a string with bold ANSI markers '''
         return "{0}{1}{2}".format(self.BOLD, value, self.END)
 
-    def _print_cve_info_by_sev(self, cve_obj):
+    @staticmethod
+    def _print_cve_info_by_sev(cve_obj):
         '''
         Helper function to print out cve information
         '''
@@ -157,7 +159,8 @@ class ParseOvalXML(object):
                 self._print_cve_info_by_sev(
                     tmp_obj['cve_summary']['scan_results'])
 
-    def debug_json(self, json_data):
+    @staticmethod
+    def debug_json(json_data):
         ''' Pretty prints a json object for debug purposes '''
         print json.dumps(json_data, indent=4, separators=(',', ': '))
 
@@ -165,7 +168,7 @@ class ParseOvalXML(object):
         '''
         Given a docker_state_file this will return a dict with the rpms
         for all images in the docker_state_file. The return dict will have
-        the format {image_id : [rpms]}, if the image is not rhel 
+        the format {image_id : [rpms]}, if the image is not rhel
         based, the rpms list will be empty
         '''
         docker_state = self._get_docker_state(docker_state_file)
@@ -177,3 +180,33 @@ class ParseOvalXML(object):
             else:
                 rpm_dict[i] = docker_state['host_results'][i]['rpms']
         return rpm_dict
+
+    @staticmethod
+    def _walk_cves(scan_results):
+        ''' Returns a dictionary of cves by severity'''
+        cve_dict = {}
+        for sev in scan_results:
+            cve_dict[sev] = []
+            for cve in scan_results[sev]['cves']:
+                tmp_dict = {cve['cve']: {}}
+                for key in cve.keys():
+                    tmp_dict[cve['cve']][key] = cve[key]
+                cve_dict[sev].append(tmp_dict)
+        return cve_dict
+
+    def return_cve_by_docker_obj(self, docker_state_object):
+        ''' Returns a dictionary of cve information by scanned object'''
+        scan_dict = {}
+        for scanned_obj in docker_state_object['host_results']:
+            fields = ['important', 'low', 'moderate', 'os', 'isRHEL',
+                      'os', 'critical']
+            scan_dict = {scanned_obj: {}}
+            dock_pointer = docker_state_object['host_results'][scanned_obj]
+            dict_pointer = scan_dict[scanned_obj]
+            for field in fields:
+                dict_pointer[field] = dock_pointer[field] if field in \
+                    dock_pointer else None
+
+            cve_details = self._walk_cves(dock_pointer['cve_summary']
+                                          ['scan_results'])
+            dict_pointer['cves'] = cve_details

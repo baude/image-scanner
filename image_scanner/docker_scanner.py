@@ -415,6 +415,7 @@ class Worker(object):
         '''
 
         xmlp = Create_Summary()
+
         # Common Information
         json_log = {}
         json_log['hostname'] = platform.node()
@@ -464,7 +465,6 @@ class Worker(object):
 
         # DEBUG
         # print  json.dumps(json_log, indent=4, separators=(',', ': '))
-
         with open(self.ac.docker_state, 'w') as state_file:
             json.dump(json_log, state_file)
 

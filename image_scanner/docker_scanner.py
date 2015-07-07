@@ -146,7 +146,7 @@ class Worker(object):
         numThreads = psutil.NUM_CPUS if number is None else number
 
         if numThreads < self.min_procs:
-            if self.args.number is not None:
+            if self.ac.number is not None:
                 print "The image-scanner requires --number to be a minimum " \
                       "of {0}. Setting --number to {1}".format(self.min_procs,
                                                                self.min_procs)
@@ -154,7 +154,7 @@ class Worker(object):
         elif numThreads <= self.max_procs:
             return numThreads
         else:
-            if self.args.number is not None:
+            if self.ac.number is not None:
                 print "Due to docker issues, we limit the max number "\
                       "of threads to {0}. Setting --number to "\
                       "{1}".format(self.max_procs, self.max_procs)
@@ -373,7 +373,7 @@ class Worker(object):
 
     def start_application(self):
         start_time = time.time()
-        logging.basicConfig(filename=self.args.logfile,
+        logging.basicConfig(filename=self.ac.logfile,
                             format='%(asctime)s %(levelname)-8s %(message)s',
                             datefmt='%m-%d %H:%M', level=logging.DEBUG)
         try:

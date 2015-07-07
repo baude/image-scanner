@@ -33,8 +33,7 @@ xmlp = ParseOvalXML()
 image_scanner = Client("localhost", "5001", "4")
 
 # Scan an image or container
-# scan_results = image_scanner.scan_list(['bef54'])
-scan_results = image_scanner.scan_list(['c0bb'])
+scan_results = image_scanner.scan_list(['bef54'])
 
 # The result of scan_list will return a JSON based structure
 # that has a very basic summary of the scan as well as

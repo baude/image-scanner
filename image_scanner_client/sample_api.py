@@ -33,7 +33,8 @@ xmlp = ParseOvalXML()
 image_scanner = Client("localhost", "5001", "4")
 
 # Scan an image or container
-scan_results = image_scanner.scan_list(['bef54'])
+# scan_results = image_scanner.scan_list(['bef54'])
+scan_results = image_scanner.scan_list(['c0bb'])
 
 # The result of scan_list will return a JSON based structure
 # that has a very basic summary of the scan as well as
@@ -47,7 +48,7 @@ if debug:
 # resulting docker_state.json file from scan_results which is
 # also a JSON structure.
 
-docker_state = xmlp.get_docker_json(scan_results['json_url'])
+docker_state = image_scanner.get_docker_json(scan_results['json_url'])
 
 if debug:
     debug_print(docker_state)

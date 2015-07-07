@@ -96,7 +96,8 @@ class RemoteScanner(object):
 
     def print_results(self, json_url):
         ''' Pretty print call to dump results'''
-        self.xmlp.pprint(json_url)
+        docker_state = self.xmlp._get_docker_state(json_url)
+        self.xmlp.pprint(docker_state)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Scan Utility for Containers')

@@ -115,12 +115,12 @@ class ParseOvalXML(object):
                                  cve['cve_title'].replace(replace_val, "").
                                  split(':')[2].rstrip())
 
-    def pprint(self, docker_state_file):
+    def pprint(self, docker_state_obj):
         '''
         Pretty print the output from a single host's image-scanner
         output.
         '''
-        docker_state_obj = self._get_docker_state(docker_state_file)
+
         two = " " * 2
         five = " " * 5
         seven = " " * 7
@@ -164,21 +164,20 @@ class ParseOvalXML(object):
         ''' Pretty prints a json object for debug purposes '''
         print json.dumps(json_data, indent=4, separators=(',', ': '))
 
-    def _get_rpms(self, docker_state_file):
+    def return_rpm_by_docker_obj(self, docker_state_object):
         '''
         Given a docker_state_file this will return a dict with the rpms
         for all images in the docker_state_file. The return dict will have
         the format {image_id : [rpms]}, if the image is not rhel
         based, the rpms list will be empty
         '''
-        docker_state = self._get_docker_state(docker_state_file)
         rpm_dict = {}
-        for i in docker_state['host_results']:
+        for i in docker_state_object['host_results']:
             rpm_dict[i] = []
-            if not docker_state['host_results'][i]['isRHEL']:
+            if not docker_state_object['host_results'][i]['isRHEL']:
                 rpm_dict[i] = []
             else:
-                rpm_dict[i] = docker_state['host_results'][i]['rpms']
+                rpm_dict[i] = docker_state_object['host_results'][i]['rpms']
         return rpm_dict
 
     @staticmethod
@@ -200,13 +199,20 @@ class ParseOvalXML(object):
         for scanned_obj in docker_state_object['host_results']:
             fields = ['important', 'low', 'moderate', 'os', 'isRHEL',
                       'os', 'critical']
-            scan_dict = {scanned_obj: {}}
+            scan_dict[scanned_obj] = {}
             dock_pointer = docker_state_object['host_results'][scanned_obj]
             dict_pointer = scan_dict[scanned_obj]
             for field in fields:
                 dict_pointer[field] = dock_pointer[field] if field in \
                     dock_pointer else None
 
-            cve_details = self._walk_cves(dock_pointer['cve_summary']
-                                          ['scan_results'])
+            # Using 1 line if looks weird, leaving this as is for now
+            if 'cve_summary' in dock_pointer:
+                cve_details = self._walk_cves(dock_pointer['cve_summary']
+                                              ['scan_results'])
+            else:
+                cve_details = []
+
             dict_pointer['cves'] = cve_details
+
+        return scan_dict

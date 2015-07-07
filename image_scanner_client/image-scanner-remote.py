@@ -56,7 +56,6 @@ class RemoteScanner(object):
             if self.args.allprofiles:
                 multi_scan = ClientCommon(api=False)
                 profiles = multi_scan.return_all_profiles()
-
                 # Check to make sure REST and docker are
                 # running on each host
 
@@ -67,7 +66,14 @@ class RemoteScanner(object):
 
                 profile_list = [profile.profile for profile in profiles]
                 results = multi_scan.\
-                    scan_multiple_hosts(profile_list, self.args)
+                    scan_multiple_hosts(profile_list,
+                                        allimages=self.args.allimages,
+                                        images=self.args.images,
+                                        allcontainers=self.args.allcontainers,
+                                        onlyactive=self.args.onlyactive,
+                                        remote_threads=self.args.
+                                        remote_threads)
+
                 return results
 
             if self.args.onlyactive:
@@ -135,6 +141,10 @@ if __name__ == '__main__':
 
     if len(sys.argv) == 1:
         parser.print_help()
+        sys.exit(1)
+
+    if os.geteuid() is not 0:
+        print "rest must be run as root"
         sys.exit(1)
 
     remotescan = RemoteScanner(args)

@@ -47,7 +47,7 @@ if debug:
 # resulting docker_state.json file from scan_results which is
 # also a JSON structure.
 
-docker_state = image_scanner.get_docker_json(scan_results['json_url'])
+docker_state = xmlp.get_docker_json(scan_results['json_url'])
 
 if debug:
     debug_print(docker_state)

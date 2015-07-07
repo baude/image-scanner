@@ -17,8 +17,11 @@
 # Boston, MA 02111-1307, USA.
 
 ''' Image Scanner remote client for command line '''
-from image_scanner_client.image_scanner_client import Client, ImageScannerClientError, ClientCommon
-from image_scanner_client.xml_parse import ParseOvalXML
+# from image_scanner_client.image_scanner_client import Client, ImageScannerClientError, ClientCommon
+# from image_scanner_client.xml_parse import ParseOvalXML
+
+from image_scanner_client import Client, ImageScannerClientError, ClientCommon
+from xml_parse import ParseOvalXML
 import sys
 import argparse
 import os
@@ -96,7 +99,8 @@ class RemoteScanner(object):
 
     def print_results(self, json_url):
         ''' Pretty print call to dump results'''
-        self.xmlp.pprint(json_url)
+        docker_state = self.xmlp._get_docker_state(json_url)
+        self.xmlp.pprint(docker_state)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Scan Utility for Containers')

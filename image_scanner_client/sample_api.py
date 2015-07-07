@@ -52,32 +52,26 @@ docker_state = image_scanner.get_docker_json(scan_results['json_url'])
 if debug:
     debug_print(docker_state)
 
-# We can now "walk" the results information in docker_state
-# to get more information using the APIs in xml_parse. The
-# _summarize_docker_object function simply needs a pointer
-# to the openscal OVAL XML result file and the docker_state
-# object we obtained above.
+# The docker_state is the core of source of information regarding
+# the results of the previous scan. We can now use various functions
+# inside the xmlp object to extract specific information
 
+# List of RPMS per scanned ID
+rpm_dict = xmlp.return_rpm_by_docker_obj(docker_state)
 
-for result in scan_results['results']:
-    # docker_id will be the id of the container or image
-    # that was scanned.
-    docker_id = result.keys()[0]
-    result_json = xmlp._summarize_docker_object(result[docker_id]['xml_url'],
-                                                docker_state)
+if debug:
+    debug_print(rpm_dict)
 
-    # The result_json object will be a JSON structure
-    # with a lot of granular information about the scan
-    # and the CVEs that were found.
-    if debug:
-        debug_print(result_json)
+# List of cve information per scanned ID
+cve_list = xmlp.return_cve_by_docker_obj(docker_state)
 
-# If you prefer to just get a print out of the scan with
-# details, you can also simply use the summary function
-# in xml_parse which only needs a pointer to the the
-# docker_state.json file.
+if debug:
+    debug_print(cve_list)
 
-xmlp.summary(scan_results['json_url'])
+# If you prefer to just get a summarized print out of the scan with
+# details, you can also simply use the pprint function
+
+xmlp.pprint(docker_state)
 
 # Check out the README on https://github.com/baude/image-scanner
 # for more information.

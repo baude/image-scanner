@@ -30,16 +30,16 @@ Provides the python client API for interacting with a local or remote image-scan
 make install DESTDIR=%{buildroot}
 
 %files python-client
-%doc README.md LICENSE
+%doc README.md LICENSE API_README.md
 %{python_sitelib}/image_scanner_client/*
 %dir %{_sysconfdir}/image-scanner/
 %config(noreplace) %{_sysconfdir}/image-scanner/image-scanner-client.conf
-%{_bindir}/image-scanner-remote.py
+%{_bindir}/image-scanner-remote
 
 %files
-%doc README.md LICENSE
-%{_bindir}/docker_scanner.py
-%{_bindir}/image-scanner-d.py
+%doc README.md LICENSE API_README.md
+%{_bindir}/docker_scanner
+%{_bindir}/image-scanner-d
 %{python_sitelib}/image_scanner/*
 %{python_sitelib}/image_scanner-*.egg-info/*
 %dir %{_sysconfdir}/image-scanner/

@@ -71,8 +71,8 @@ class RemoteScanner(object):
                                         images=self.args.images,
                                         allcontainers=self.args.allcontainers,
                                         onlyactive=self.args.onlyactive,
-                                        remote_threads=self.args.
-                                        remote_threads)
+                                        remote_threads=int(self.args.
+                                        remote_threads))
 
                 return results
 

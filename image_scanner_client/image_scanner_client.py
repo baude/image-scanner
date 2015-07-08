@@ -127,7 +127,7 @@ class Client(requests.Session):
         try:
             if data is not None:
                 results = self.get(url, data=data,
-                                   headers=headers, timeout=10)
+                                   headers=headers)
             else:
                 results = self.get(url, headers=headers, timeout=10)
         except requests.exceptions.ConnectionError:
@@ -198,6 +198,7 @@ class ClientCommon(object):
         self.api = api
         self.num_complete = 0
         self.num_total = 0
+        self.last_completed = ""
 
     @staticmethod
     def debug_json(json_data):
@@ -272,9 +273,9 @@ class ClientCommon(object):
         return self.thread_profiles(*args)
 
     def thread_profiles(self, profile, onlyactive, allcontainers,
-                        allimages, images, remote_threads=4):
+                        allimages, images):
         ''' Kicks off a scan of for a remote host'''
-        scanner = Client(profile.host, profile.port, number=remote_threads)
+        scanner = Client(profile.host, profile.port, number=profile.number)
         try:
             if onlyactive:
                 results = scanner.scan_all_containers(onlyactive=True)
@@ -291,6 +292,7 @@ class ClientCommon(object):
             scanner.get_docker_json(results['json_url'])
         self.uber_docker[profile.profile] = host_state
         self.num_complete += 1
+        self.last_completed = " Completed {0}".format(profile.profile)
 
     def scan_multiple_hosts(self, profile_list, allimages=False, images=False,
                             allcontainers=False, onlyactive=False,
@@ -340,11 +342,12 @@ class ClientCommon(object):
         if not self.api:
             # Print one last progress bar so it is 100% complete
             sys.stdout.write(
-                "\r[{0:20s}] {1}%    {2}/{3}"
+                "\r[{0:20s}] {1}%    {2}/{3} | {4}"
                 .format('#' * int(float(self.num_complete) /
                         float(self.num_total) * 20),
                         int(self.num_complete / self.num_total * 100),
-                        int(self.num_complete), int(self.num_total)))
+                        int(self.num_complete), int(self.num_total),
+                        self.last_completed))
 
         with open(self.uber_file_path, 'w') as state_file:
             json.dump(self.uber_docker, state_file)
@@ -354,12 +357,12 @@ class ClientCommon(object):
     def _progress(self):
         ''' Prints progress bar based on the status of a multi scan '''
         while self.num_complete < self.num_total:
-            sys.stdout.write("\r[{0:20s}] {1}%    {2}/{3}"
+            sys.stdout.write("\r[{0:20s}] {1}%    {2}/{3} | {4}"
                              .format('#' * int(float(self.num_complete) /
                                      float(self.num_total) * 20),
                                      int(self.num_complete / self.num_total *
                                          100), int(self.num_complete),
-                                     int(self.num_total)))
+                                     int(self.num_total), self.last_completed))
             sys.stdout.flush()
             time.sleep(1)
 

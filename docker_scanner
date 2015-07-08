@@ -127,8 +127,8 @@ class Worker(object):
 
     def __init__(self, args):
         self.args = args
-        self.procs = self.set_procs(args.number)
         self.ac = ApplicationConfiguration(parserargs=args)
+        self.procs = self.set_procs(args.number)
         if not os.path.exists(self.ac.workdir):
             os.makedirs(self.ac.workdir)
         self.cs = ContainerSearch()

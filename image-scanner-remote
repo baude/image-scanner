@@ -17,7 +17,8 @@
 # Boston, MA 02111-1307, USA.
 
 ''' Image Scanner remote client for command line '''
-from image_scanner_client.image_scanner_client import Client, ImageScannerClientError, ClientCommon
+from image_scanner_client.image_scanner_client import ImageScannerClientError
+from image_scanner_client.image_scanner_client import Client, ClientCommon
 from image_scanner_client.xml_parse import ParseOvalXML
 import sys
 import argparse
@@ -45,7 +46,10 @@ class RemoteScanner(object):
         except ImageScannerClientError as common_error:
             print common_error
             sys.exit(1)
-        number = parseargs.number
+        # Check if number is over-ridden by parse args
+        number = number if parseargs.number is 0 else parseargs.number
+        # If number is less than 2, set it to 2
+        number = number if number >= 2 else 2
         self.remote_client = Client(host, port, number)
         self.xmlp = ParseOvalXML()
         self.ping_host = None
@@ -72,7 +76,7 @@ class RemoteScanner(object):
                                         allcontainers=self.args.allcontainers,
                                         onlyactive=self.args.onlyactive,
                                         remote_threads=int(self.args.
-                                        remote_threads))
+                                                           remote_threads))
 
                 return results
 
@@ -120,7 +124,7 @@ if __name__ == '__main__':
     group.add_argument('-s', '--scan', help='image to search',
                        action='append')
     parser.add_argument('-n', '--number', help='number of processors to use',
-                        type=int, default=2)
+                        type=int, default=0)
 
     parser.add_argument('--port', help='Port for the image-scanner-d',
                         type=int, default=5001)

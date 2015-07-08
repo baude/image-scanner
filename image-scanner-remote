@@ -37,48 +37,52 @@ class RemoteScanner(object):
         if not os.path.exists(self.config_file):
             print "Unable to find config file at " \
                   "{0}".format(self.config_file)
-
+        self.client_common = ClientCommon()
         self.args = parseargs
-        client_common = ClientCommon()
-        try:
-            host, port, number, cert = \
-                client_common.get_profile_info(parseargs.profile)
-        except ImageScannerClientError as common_error:
-            print common_error
-            sys.exit(1)
-        # Check if number is over-ridden by parse args
-        number = number if parseargs.number is 0 else parseargs.number
-        # If number is less than 2, set it to 2
-        number = number if number >= 2 else 2
-        self.remote_client = Client(host, port, number)
         self.xmlp = ParseOvalXML()
-        self.ping_host = None
 
-    def scan(self):
+    def scan_multiple(self):
         ''' Executes the scan on the remote host'''
+        multi_scan = ClientCommon(api=False)
         try:
             if self.args.allprofiles:
-                multi_scan = ClientCommon(api=False)
                 profiles = multi_scan.return_all_profiles()
-                # Check to make sure REST and docker are
-                # running on each host
+            else:
+                profiles = multi_scan.return_profiles(self.args.profile)
 
-                for profile in profiles:
-                    self.ping_host = profile.host
-                    ping_check = Client(profile.host, profile.port)
-                    ping_check.ping()
+            # Check to make sure REST and docker are
+            # running on each host
 
-                profile_list = [profile.profile for profile in profiles]
-                results = multi_scan.\
-                    scan_multiple_hosts(profile_list,
-                                        allimages=self.args.allimages,
-                                        images=self.args.images,
-                                        allcontainers=self.args.allcontainers,
-                                        onlyactive=self.args.onlyactive,
-                                        remote_threads=int(self.args.
-                                                           remote_threads))
+            for profile in profiles:
+                ping_check = Client(profile.host, profile.port)
+                ping_check.ping()
 
-                return results
+            profile_list = [profile.profile for profile in profiles]
+            results = multi_scan.\
+                scan_multiple_hosts(profile_list,
+                                    allimages=self.args.allimages,
+                                    images=self.args.images,
+                                    allcontainers=self.args.allcontainers,
+                                    onlyactive=self.args.onlyactive,
+                                    remote_threads=int(self.args.
+                                                       remote_threads))
+            return results
+
+        except ImageScannerClientError as remote_error:
+            print remote_error
+            sys.exit(1)
+
+    def scan_single(self, profile):
+        try:
+            host, port, number, cert = \
+                self.client_common.get_profile_info(profile)
+
+            # Check if number is over-ridden by parse args
+            number = number if self.args.number is 0 else self.args.number
+            # If number is less than 2, set it to 2
+            number = number if number >= 2 else 2
+
+            self.remote_client = Client(host, port, number)
 
             if self.args.onlyactive:
                 return self.remote_client.scan_all_containers(onlyactive=True)
@@ -135,8 +139,9 @@ if __name__ == '__main__':
 
     profile = parser.add_mutually_exclusive_group()
 
-    profile.add_argument('--profile', help='Profile from configuration file',
-                         default='localhost')
+    profile.add_argument('-p', '--profile',
+                         help='Profile or profiles from the '
+                         'configuration file', action='append')
     profile.add_argument('--allprofiles',
                          help='Run the scanner on all profiles',
                          default=False, action='store_true')
@@ -148,13 +153,21 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if os.geteuid() is not 0:
-        print "rest must be run as root"
+        print "Must be run as root"
+        sys.exit(1)
+
+    if args.profile is None and not args.allprofiles:
+        print "No profile selected with -p from "\
+              "/etc/image-scanner/image-scanner-client.conf"
+        print ""
         sys.exit(1)
 
     remotescan = RemoteScanner(args)
-    scansummary = remotescan.scan()
-    if not args.allprofiles:
-        remotescan.print_results(scansummary['json_url'])
-    else:
+
+    if args.allprofiles or len(args.profile) > 1:
+        scansummary = remotescan.scan_multiple()
         common = ClientCommon()
         common.mult_host_mini_pprint(scansummary)
+    else:
+        scansummary = remotescan.scan_single(args.profile[0])
+        remotescan.print_results(scansummary['json_url'])

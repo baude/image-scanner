@@ -326,7 +326,7 @@ class ClientCommon(object):
         # Obtain list of profiles
         profiles = self.return_profiles(profile_list)
 
-        self.num_total = len(all_profile_names)
+        self.num_total = len(profiles)
         if not self.api:
             print ""
             progress_thread = threading.Thread(target=self._progress)

@@ -22,4 +22,4 @@ COPY ./ /root/image-scanner/
 
 RUN cd /root/image-scanner && make clean && make -C packaging -f Makefile.dist-packaging rpm && yum -y localinstall /root/image-scanner/packaging/noarch/image-scanner-*.noarch.rpm && yum clean all
 
-CMD /usr/bin/image-scanner-d.py
+CMD /usr/bin/image-scanner-d

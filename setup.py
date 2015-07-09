@@ -10,7 +10,6 @@ setup(name='image-scanner',
       #packages=find_packages(),
       packages=['image_scanner', 'image_scanner_client'],
       scripts=['image-scanner-d',
-               'docker_scanner',
                'image-scanner-remote'],
       py_modules=['image_scanner/rest',
                   'image_scanner/applicationconfiguration',
@@ -20,5 +19,5 @@ setup(name='image-scanner',
                   'image_scanner/scan',
                   'image_scanner/xml_parse',
                   'image_scanner/sample_py',
-                  'image_scanner/image_scanner']
+                  'image_scanner/docker_scanner']
 )

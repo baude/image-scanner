@@ -39,7 +39,6 @@ make install DESTDIR=%{buildroot}
 
 %files
 %doc README.md LICENSE API_README.md
-%{_bindir}/docker_scanner
 %{_bindir}/image-scanner-d
 %{python_sitelib}/image_scanner/*
 %{python_sitelib}/image_scanner-*.egg-info/*

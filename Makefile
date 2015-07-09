@@ -9,6 +9,8 @@ install:
 	mkdir -p $(DESTDIR)/etc/image-scanner
 	cp conf/image-scanner.conf $(DESTDIR)/etc/image-scanner
 	cp conf/image-scanner-client.conf $(DESTDIR)/etc/image-scanner
+	install -d $(DESTDIR)/usr/share/man/man1
+	install -m 644 docs/*.1 $(DESTDIR)/usr/share/man/man1
 
 clean:
 	rm -fvr packaging/image-scanner-*

@@ -35,6 +35,7 @@ make install DESTDIR=%{buildroot}
 %dir %{_sysconfdir}/image-scanner/
 %config(noreplace) %{_sysconfdir}/image-scanner/image-scanner-client.conf
 %{_bindir}/image-scanner-remote
+%{_mandir}/man1/*
 
 %files
 %doc README.md LICENSE API_README.md

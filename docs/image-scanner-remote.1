@@ -1,0 +1,66 @@
+.\" Manpage for image-scanner-remote
+.TH image-scanner-remote "09 July 2015" "1.0" "image-scanner-remote man page"
+.SH NAME
+image-scanner-remote \- scan remote hosts running the image-scanner daemon
+.SH SYNOPSIS
+.B image-scanner-remote -p|--allprofiles [-r]
+.B --images|--allimages|--onlyactive|--allcontainers 
+
+.SH DESCRIPTION
+.B image-scanner-remote
+scans one or more remote hosts running the image-scanner daemon.  If you scan
+only a single remote host, you will get more granular information about the
+scan results.  If you scan more than one remote host, you will get a summary
+style of the scan results.  This command requires sudo authority.
+
+.OPTIONS
+.IP -p
+Specify the profile name to use from /etc/image-scanner-client.conf.
+You can specify more than one with subsequent -p uses. (i.e. -p foo -p bar)
+.IP -allprofiles
+Use all profiles defined in /etc/image-scanner/image-scanner-client.conf
+.IP -r
+The number of remote hosts to scan simultaneously
+.IP --allimages
+Scan all images on the remote host including intermediate images 
+(docker images -a)
+.IP --images
+Scan images on the remote host (docker images)
+.IP --onlyactive
+Scan only active containers on the remote host (docker ps)
+.IP --allcontainers
+Scan all containers on the remote host (docker ps -a)
+
+.SH FILES
+.I /etc/image-scanner/image-scanner-client
+.RS 
+The configuration file that contains descriptions of the remote hosts
+by their profile name
+
+.RE
+.I /var/tmp//image-scanner/client/uber-docker.json
+.RS
+A JSON based file that contains the results from all the scans when
+multiple hosts are scanned
+
+.SH EXAMPLES
+Scan all containers on the remote host profile 'foo'
+
+.RS
+.I image-scanner-remote -p foo --allcontainers
+.RE
+
+Scan only active containers on host profiles 'foo' and 'bar'
+
+.RS
+.I image-scanner-remote -p foo -p bar --onlyactive
+.RE
+
+Scan all images on all defined profiles
+
+.RS
+.I image-scanner-remote --allprofiles --allimages
+.RE
+
+.SH AUTHOR
+Brent Baude <baude@redhat.com>

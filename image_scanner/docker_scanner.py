@@ -162,9 +162,16 @@ class Worker(object):
 
     def _get_cids_for_image(self, cs, image):
         cids = []
+
         if image in cs.fcons:
             for container in cs.fcons[image]:
                 cids.append(container['uuid'])
+        else:
+            for iid in cs.fcons:
+                cids = [con['uuid'] for con in cs.fcons[iid]]
+                if image in cids:
+                    return cids
+
         return cids
 
     def get_cve_data(self):

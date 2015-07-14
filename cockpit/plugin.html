@@ -1,0 +1,154 @@
+<head>
+    <title>Docker Info</title>
+    <meta charset="utf-8">
+    <link href="../base1/cockpit.css" rel="stylesheet">
+    <link href="../ostree/ostree.css" rel="stylesheet">
+    <script src="../base1/bundle.js"></script>
+</head>
+<body>
+<div id="test-dialog" tabindex="-1" role="dialog" data-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" translatable="yes">Image Scanner options</h4>
+            </div>
+            <div class="modal-body">
+                <table class="cockpit-form-table">
+                    <tr>
+                        <td class="top">
+                            <label class="control-label" for="control-2" translatable="yes">
+                                Scan
+                            </label>
+                        </td>
+                        <td>
+                            <select id="scan_type" class="form-control selectpicker">
+                                <option translatable="yes" value="images">Images</option>
+                                <option translatable="yes" value="allimages">All images including intermediate</option>
+                                <option translatable="yes" value="onlyactive" selected>Only active containers</option>
+                                <option translatable="yes" value="allcontainers">All containers</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="top">
+                            <label class="control-label" for="control-1" translatable="yes">
+                                Threads
+                            </label>
+                        </td>
+                        <td>
+                            <select id="threads" class="form-control selectpicker">
+                                <option translatable="yes" value="2">2</option>
+                                <option translatable="yes" value="3">3</option>
+                                <option translatable="yes" value="4" selected>4</option>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-default" id="startscan" translatable="yes" data-dismiss="modal">
+                    Scan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid" style="display: hidden" id="scan_header">
+    <h1> Scan results </h1>
+</div>
+<div id="spinner" class="spinner spinner-lg" style="display: hidden"></div>
+<div id="sampleArea" class="container-fluid">
+    <script>
+
+        require(["jquery",
+        "base1/cockpit",
+        "base1/mustache",
+        "translated!base1/po",
+        ], function ($, cockpit, mustache, po) {
+            cockpit.locale(po);
+            cockpit.translate();
+
+            var scan = cockpit.http(5001, { superuser: "try" });
+            function register_button() {
+                var btn = $('#startscan');
+                btn.on('click', function() {
+                        $("#spinner").show()
+                        $("#scan_header").show()
+                        retrieve_info()
+                });
+            }
+
+            function retrieve_info() {
+                threads = $('#threads').val();
+                scan_type = $('#scan_type').val();
+                var onlyactive = false;
+                var allcontainers = false;
+                var images = false;
+                var allimages = false;
+                
+                switch (scan_type){
+                    case 'onlyactive':
+                        onlyactive = true;
+                        break;
+                    case 'allcontainers':
+                        allcontainers = true;
+                        break;
+                    case 'images':
+                        images = true;
+                        break;
+                    case 'allimages':
+                        allimages = true;
+                        break;
+                }
+                var info = scan.request({body: JSON.stringify({'onlyactive': onlyactive, 'allcontainers': allcontainers, 'images': images, 'allimages': allimages, 'number':4}), method: "GET", path: "/image-scanner/api/scan", headers: { "Content-Type": "application/json" }});
+                info.done(process_info);
+                info.fail(print_failure);
+                info.always(function () {
+                    $("#spinner").hide();
+                });
+            }
+
+            function process_info(data) {
+                var resp = JSON.parse(data);
+                var rresults = resp.results
+                var docker_ids = Object.keys(resp.results)
+                var html = ""
+                console.log(resp.results)
+                for (var key in resp.results) {
+                    var docker_id = "<h2>" + key + "</h2>";
+                    var value = resp.results[key];
+                    if (!value.hasOwnProperty('msg')){
+                        scan_result = "<P>" + value.critical;
+                        //tpl = "<ul><li>Critical: {{critical}}</li><li>Important: {{important}}</li><li>Moderate: {{moderate}}</li><li>Low: {{low}}</li><li>OS: {{os}}</li><li>Containers with same base image: {{#cids}}{{.}}{{/cids}}</li></ul>";
+                        tpl = "<ul><li>Critical: {{critical}}</li><li>Important: {{important}}</li><li>Moderate: {{moderate}}</li><li>Low: {{low}}</li><li>OS: {{os}}</li><li>Containers with same base image: {{#cids}}{{.}}, {{/cids}}</li></ul>";
+                          html = html + docker_id + mustache.to_html(tpl, value);
+                    }
+                    else{
+                        html = html + docker_id + "<ul><li> Not based on RHEL </li></ul>";
+                    }
+                    }
+
+            $('#sampleArea').html(html);
+
+            }
+
+            //retrieve_info();
+
+            function got_event() {
+                retrieve_info();
+            }
+
+            function print_failure(ex) {
+                console.log(ex);
+            }
+
+            register_button();
+            $("#spinner").hide();
+       });
+
+//var results = {name: "John Smith", skills: ['JavaScript', 'PHP', 'Java']};
+//var tpl = "Docker ID{{results}} <ul>{{#skills}}<li>{{.}}</li>{{/skills}}</ul>";
+    </script>
+</div>
+</body>
+</html>

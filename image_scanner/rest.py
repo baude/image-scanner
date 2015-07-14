@@ -136,14 +136,13 @@ def ping():
                         'to be running'})
 
 
-@application.route(os.path.join(rest_path, "scan"), methods=['GET'])
+@application.route(os.path.join(rest_path, "scan"), methods=['GET','POST'])
 def scan():
     ''' Kicks off a scan via REST '''
     try:
         port, host, dockerhost = get_env_info()
     except ConfigParser.NoSectionError:
         return jsonify({'Error': 'Unable to parse conf file'})
-
     arg_tup = create_tuple(request.json, request.url_root, host, port)
 
     try:

@@ -129,7 +129,7 @@ class Client(requests.Session):
                 results = self.get(url, data=data,
                                    headers=headers)
             else:
-                results = self.get(url, headers=headers, timeout=10)
+                results = self.get(url, headers=headers, timeout=9)
         except requests.exceptions.ConnectionError:
             raise ImageScannerClientError("Unable to connect to REST server "
                                           "at {0}".format(url))

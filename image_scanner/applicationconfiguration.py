@@ -71,7 +71,7 @@ class ApplicationConfiguration(Singleton):
     def ValidateHost(self, host):
         ''' Validates if the defined docker host is running'''
         try:
-            client = docker.Client(base_url=host, timeout=10)
+            client = docker.Client(base_url=host, timeout=11)
             if not client.ping():
                 raise(Exception)
         except Exception, err:

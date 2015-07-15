@@ -45,7 +45,7 @@ scan_tuple = collections.namedtuple('Namespace', scan_args)
 rest_path = '/image-scanner/api/'
 
 docker_host = "unix://var/run/docker.sock"
-connection = docker.Client(base_url=docker_host, timeout=10)
+connection = docker.Client(base_url=docker_host, timeout=9)
 port = None
 
 

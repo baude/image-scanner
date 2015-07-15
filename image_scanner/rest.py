@@ -30,6 +30,7 @@ import sys
 import ConfigParser
 from image_scanner_client.image_scanner_client import ImageScannerClientError
 import requests
+import urlparse
 
 application = flask.Flask(__name__, static_path='/var/tmp/image-scanner/')
 # app.config.update(SERVER_NAME='127.0.0.1:5001')
@@ -136,7 +137,7 @@ def ping():
                         'to be running'})
 
 
-@application.route(os.path.join(rest_path, "scan"), methods=['GET','POST'])
+@application.route(os.path.join(rest_path, "scan"), methods=['GET', 'POST'])
 def scan():
     ''' Kicks off a scan via REST '''
     try:
@@ -144,17 +145,19 @@ def scan():
     except ConfigParser.NoSectionError:
         return jsonify({'Error': 'Unable to parse conf file'})
     arg_tup = create_tuple(request.json, request.url_root, host, port)
-
     try:
         worker = Worker(arg_tup)
     except ImageScannerClientError:
         return jsonify({'Error': "Failed to connect to the docker host"})
     try:
         return_json, json_url = worker.start_application()
+        url = urlparse.urlparse(json_url)
+        print url.path
     except ImageScannerClientError as failed_scan:
         return jsonify({'Error': str(failed_scan)})
     return jsonify({'results': return_json,
                     'json_url': json_url,
+                    'json_path': url.path,
                     'port': port,
                     'host': host})
 

@@ -1,13 +1,6 @@
 FROM registry.access.redhat.com/rhel7:latest
 
-RUN yum -y --disablerepo=\* --enablerepo=rhel-7-server-rpms install yum-utils &&   yum-config-manager --disable \* &&   yum-config-manager --enable rhel-7-server-rpms &&   yum-config-manager --enable rhel-7-server-extras-rpms && yum clean all
-
-RUN yum -y update && yum -y install http://mirror.nexcess.net/epel/7/x86_64/e/epel-release-7-5.noarch.rpm && yum clean all
-
-# Debug only
-#RUN yum -y install vim strace file less top
-
-RUN yum -y install vim docker python-docker-py openscap-scanner tar python-cherrypy uwsgi-plugin-python uwsgi-router-http uwsgi-plugin-common python-psutil findutils python-flask git make rpm-build python-setuptools && yum clean all
+RUN yum -y --disablerepo=\* --enablerepo=rhel-7-server-rpms install yum-utils &&   yum-config-manager --disable \* &&   yum-config-manager --enable rhel-7-server-rpms &&   yum-config-manager --enable rhel-7-server-extras-rpms && yum clean all && yum -y update && yum -y install http://mirror.nexcess.net/epel/7/x86_64/e/epel-release-7-5.noarch.rpm && yum clean all && yum -y install vim docker python-docker-py openscap-scanner tar python-cherrypy uwsgi-plugin-python uwsgi-router-http uwsgi-plugin-common python-psutil findutils python-flask git make rpm-build python-setuptools && yum clean all
 
 LABEL Version=1.0
 LABEL Vendor="Red Hat" License=GPLv3

@@ -42,6 +42,17 @@
                                 <option translatable="yes" value="4" selected>4</option>
                         </td>
                     </tr>
+                    <tr>
+                        <td class="top">
+                            <label class="control-label" for="control-2" translatable="yes">
+                                Detailed Summary
+                            </label>
+                        </td>
+
+                        <td>
+                            <input type="checkbox" id="granular">
+                        </td>
+                    </tr>
                 </table>
             </div>
             <div class="modal-footer">
@@ -108,18 +119,67 @@
                 });
             }
 
+            function capfirstletter(value){
+                return value.charAt(0).toUpperCase + value.slice(1);
+            }
+
+            function granular(data) {
+                var docker_json = JSON.parse(data);
+                var host_results = docker_json.host_results;
+                var html = ""
+                for (var key in host_results) {
+                    var docker_id = "</ul><h2>" + key + "</h2><ul>";
+                    var docker_obj = host_results[key];
+                    html = html + docker_id
+                    if (docker_obj.isRHEL == true) {
+                        tpl = "<li>{{os}}</li>";
+                        html = html + mustache.to_html(tpl, docker_obj);
+
+                        if (docker_obj.cve_summary.hasOwnProperty('containers')){
+                            tpl = "<h3>Containers with same base image</h3><ul>{{#containers}}<li>{{.}}</li>{{/containers}}</ul></h3>";
+                            html = html + mustache.to_html(tpl, docker_obj.cve_summary);
+                        }
+                        tpl = '<div class="panel-group" id="accordion-markup" style="width:600px"><div class="panel panel-default"><div class="panel-heading"><h4 class="panel-title"><a data-toggle="collapse" data-parent="#accordion-markup" href="#' + key + '" class="collapsed">RPMS</a></h4></div><div id="' + key + '" class="panel-collapse collapse"><div class="panel-body"><ul>{{#rpms}}<li>{{.}}</li>{{/rpms}}</ul></div></div></div></div>';
+                        html = html + mustache.to_html(tpl, docker_obj);
+                
+                        var scan_results = docker_obj.cve_summary.scan_results;
+                        sev_array = ["Crtitical", "Important", "Moderate", "Low"];
+                        for (i=0; i < sev_array.length; i++){
+                            sev = sev_array[i];
+                            if (scan_results.hasOwnProperty(sev)){
+                                html = html + "<h3>" + sev + " (" + scan_results[sev].num + ")</h3>";
+                                tpl = "<ul>{{#cves}}<li><b>{{cve}} {{cve_title}}</b><ul><li>CVE Ref ID: <a href='{{cve_ref_url}}'>{{cve_ref_id}}</a></li><li>RHSA Ref ID: <a href='{{rhsa_ref_url}}'>{{rhsa_ref_id}}</a></li></ul></li>{{/cves}}</ul>";
+                                html = html + mustache.to_html(tpl, scan_results[sev]);
+                            }
+                            else {
+                                html = html + "<h3>" + sev + " (0)</h3>";
+                                html = html + "<P>No CVEs</p>";
+                            }
+
+                        }
+                    }
+                    else {
+                        html = html + "<P>Not based on RHEL</p>"
+                    }
+
+                }
+                $('#sampleArea').html(html);
+            }
+
+
             function process_info(data) {
                 var resp = JSON.parse(data);
-                var rresults = resp.results
-                var docker_ids = Object.keys(resp.results)
+                var rresults = resp.results;
+                var docker_ids = Object.keys(resp.results);
+
+                if (!$('#granular').is(":checked")) {
+                   
                 var html = ""
-                console.log(resp.results)
                 for (var key in resp.results) {
                     var docker_id = "<h2>" + key + "</h2>";
                     var value = resp.results[key];
                     if (!value.hasOwnProperty('msg')){
                         scan_result = "<P>" + value.critical;
-                        //tpl = "<ul><li>Critical: {{critical}}</li><li>Important: {{important}}</li><li>Moderate: {{moderate}}</li><li>Low: {{low}}</li><li>OS: {{os}}</li><li>Containers with same base image: {{#cids}}{{.}}{{/cids}}</li></ul>";
                         tpl = "<ul><li>Critical: {{critical}}</li><li>Important: {{important}}</li><li>Moderate: {{moderate}}</li><li>Low: {{low}}</li><li>OS: {{os}}</li><li>Containers with same base image: {{#cids}}{{.}}, {{/cids}}</li></ul>";
                           html = html + docker_id + mustache.to_html(tpl, value);
                     }
@@ -127,8 +187,15 @@
                         html = html + docker_id + "<ul><li> Not based on RHEL </li></ul>";
                     }
                     }
+                 $('#sampleArea').html(html);
+                }
+                else {
+                    var fetch = cockpit.http(5001, {superuser: "try"});
+                    docker_obj = fetch.get(resp.json_path)
+                    html = docker_obj.done(granular);
+                }
 
-            $('#sampleArea').html(html);
+
 
             }
 

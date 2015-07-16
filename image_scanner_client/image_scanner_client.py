@@ -199,6 +199,7 @@ class ClientCommon(object):
         self.num_complete = 0
         self.num_total = 0
         self.last_completed = ""
+        self.threads = 0
 
     @staticmethod
     def debug_json(json_data):
@@ -243,6 +244,8 @@ class ClientCommon(object):
         config.read(self.config_file)
         for profile in input_profile_list:
             host, port, number, cert = self.get_profile_info(profile)
+            if self.threads > 0:
+                number = self.threads
             profile_list.append(self._make_profile_tuple(host, port,
                                 number, cert, profile))
         return profile_list
@@ -296,12 +299,19 @@ class ClientCommon(object):
 
     def scan_multiple_hosts(self, profile_list, allimages=False, images=False,
                             allcontainers=False, onlyactive=False,
-                            remote_threads=4):
+                            remote_threads=4, threads=0):
         '''
         Scan multiple hosts and returns an uber-docker object
         which is basically an object with one or more docker
         state objects in it.
         '''
+
+        if (threads > 0):
+            self.threads = threads
+
+        if (threads < 2 or threads > 4):
+            raise ImageScannerClientError("Thread count must be between 2 "
+                                          "and 4")
 
         scan_args = self.args_tuple(allimages=allimages, images=images,
                                     allcontainers=allcontainers,

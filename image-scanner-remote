@@ -65,7 +65,8 @@ class RemoteScanner(object):
                                     allcontainers=self.args.allcontainers,
                                     onlyactive=self.args.onlyactive,
                                     remote_threads=int(self.args.
-                                                       remote_threads))
+                                                       remote_threads),
+                                    threads=self.args.number)
             return results
 
         except ImageScannerClientError as remote_error:

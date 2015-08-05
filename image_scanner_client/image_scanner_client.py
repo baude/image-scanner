@@ -189,7 +189,7 @@ class ClientCommon(object):
     client_dir = "/var/tmp/image-scanner/client"
 
     if not os.path.exists(client_dir):
-        os.mkdir(client_dir)
+        os.makedirs(client_dir)
 
     uber_file_path = os.path.join(client_dir, 'uber_docker.json')
 

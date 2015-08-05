@@ -31,6 +31,7 @@ import ConfigParser
 from image_scanner_client.image_scanner_client import ImageScannerClientError
 import requests
 import urlparse
+import uwsgi
 
 application = flask.Flask(__name__, static_path='/var/tmp/image-scanner/')
 # app.config.update(SERVER_NAME='127.0.0.1:5001')
@@ -44,7 +45,9 @@ scan_tuple = collections.namedtuple('Namespace', scan_args)
 
 rest_path = '/image-scanner/api/'
 
-docker_host = "unix://var/run/docker.sock"
+docker_host = "unix://var/run/docker.sock" if uwsgi.opt.get('dockerhost')\
+    is None else uwsgi.opt.get('dockerhost')
+
 connection = docker.Client(base_url=docker_host, timeout=9)
 port = None
 
@@ -142,8 +145,9 @@ def scan():
     ''' Kicks off a scan via REST '''
     try:
         port, host, dockerhost = get_env_info()
-    except ConfigParser.NoSectionError:
-        return jsonify({'Error': 'Unable to parse conf file'})
+    except Exception as error:
+        return jsonify({'Error': error})
+
     arg_tup = create_tuple(request.json, request.url_root, host, port)
     try:
         worker = Worker(arg_tup)
@@ -152,7 +156,6 @@ def scan():
     try:
         return_json, json_url = worker.start_application()
         url = urlparse.urlparse(json_url)
-        print url.path
     except ImageScannerClientError as failed_scan:
         return jsonify({'Error': str(failed_scan)})
     return jsonify({'results': return_json,
@@ -175,20 +178,22 @@ def send_js(path):
 
 
 def get_env_info():
-    conf_file = "/etc/image-scanner/image-scanner.conf"
-    config = ConfigParser.RawConfigParser()
-    # docker_host = "unix://var/run/docker.sock"
-    try:
-        # Check if we have a conf file
-        config.read(conf_file)
-        # If we find a conf-file, override it if passed via command line
-        # else use the conf-file
-        port = config.get('main', 'port')
-        host = config.get('main', 'hostip')
-        dockerhost = config.get('main', 'dockerhost')
-    except ConfigParser.NoSectionError:
-        # No conf file found
-        raise
+    #conf_file = "/etc/image-scanner/image-scanner.conf"
+    #config = ConfigParser.RawConfigParser()
+    #try:
+    #    # Check if we have a conf file
+    #    config.read(conf_file)
+    #    # If we find a conf-file, override it if passed via command line
+    #    # else use the conf-file
+    #    print uwsgi.opt.get('socket')
+    #    port = config.get('main', 'port')
+    #    host = config.get('main', 'hostip')
+    #    dockerhost = config.get('main', 'dockerhost')
+    #except ConfigParser.NoSectionError:
+    #    # No conf file found
+    #    raise
+    host, port = uwsgi.opt.get('socket').split(':')
+    dockerhost = uwsgi.opt.get('dockerhost')
 
     return port, host, dockerhost
 

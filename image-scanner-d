@@ -24,17 +24,7 @@ import os
 import sys
 import signal
 import ctypes
-
-# FIXME
-# I'm not dead sure this is 100% a good idea, but in order
-# to avoid issues....
-if os.geteuid() is not 0:
-    print "image-scanner-d must be run as root"
-    sys.exit(1)
-
-
-conf_file = "/etc/image-scanner/image-scanner.conf"
-config = ConfigParser.RawConfigParser()
+import argparse
 
 
 libc = ctypes.CDLL('libc.so.6')
@@ -51,30 +41,68 @@ def set_death_signal_int():
     set_death_signal(SIGINT)
 
 
-try:
-    # Check if we have a conf file
-    config.read(conf_file)
-    # If we find a conf-file, override it if passed via command line
-    # else use the conf-file
-    port = config.get('main', 'port')
-    host = config.get('main', 'hostip')
+class ConfigValues(object):
+    conf_file = "/etc/image-scanner/image-scanner.conf"
 
-except ConfigParser.NoSectionError as conf_error:
-    # No conf file found, resort to checking command line, then defaults
-    port = 5001
-    host = "127.0.0.1"
+    def __init__(self):
+        self.has_conf = True if os.path.exists(self.conf_file) else False
+        if self.has_conf:
+            self.config = ConfigParser.RawConfigParser()
+            self.config.read(self.conf_file)
 
+    def return_config_val(self, parse_args, sysargs):
+        '''
+        Returns the proper values for host, port, and dockerhost with inputs
+        from the parseargs
 
-host_port = "{0}:{1}".format(host, port)
-if os.path.exists('image_scanner/') and 'rest.py' in \
-        os.listdir('image_scanner/'):
-    rest_py = 'image_scanner/rest.py'
-elif os.path.exists('/usr/lib/python2.7/site-packages/image_scanner/rest.py'):
-    rest_py = '/usr/lib/python2.7/site-packages/image_scanner/rest.py'
-else:
-    print "Unable to find rest.py"
-    sys.exit(1)
+        The logic for determining them are the follow order:
+            1. Passed by command line parameter
+            2. Configuration file if present
+            3. Fall back default set by parseargs
+        '''
 
-cmd = ['uwsgi', '--plugin', 'python,http', '--socket', host_port,
-       '--protocol=http', '--wsgi-file', rest_py]
-subprocess.call(cmd, preexec_fn=set_death_signal_int)
+        host = parse_args.host if ('--host' in sysargs or not self.has_conf)\
+            else self.config.get('main', 'hostip') if\
+            self.config.has_section('main') and\
+            self.config.has_option('main', 'hostip') else parse_args.host
+        port = parse_args.port if ('--port' in sysargs or not self.has_conf)\
+            else self.config.get('main', 'port')\
+            if self.config.has_section('main')\
+            and self.config.has_option('main', 'port') else parse_args.port
+        dockerhost = parse_args.dockerhost\
+            if ('--dockerhost' in sysargs or not self.has_conf)\
+            else self.config.get('main', 'dockerhost')\
+            if self.config.has_section('main') and\
+            self.config.has_option('main', 'dockerhost')\
+            else parse_args.dockerhost
+        return host, port, dockerhost
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Image-Scanner Daemon')
+    parser.add_argument('--port', help='Port for the image-scanner-d',
+                        type=int, default=5001)
+    parser.add_argument('--host', help='IP to bind the daemon to',
+                        default='127.0.0.1')
+    parser.add_argument('--dockerhost', help='Docker host',
+                        default='unix://var/run/docker.sock')
+
+    args = parser.parse_args()
+
+    config_values = ConfigValues()
+    host, port, dockerhost = config_values.return_config_val(args, sys.argv)
+
+    host_port = "{0}:{1}".format(host, port)
+    if os.path.exists('image_scanner/') and 'rest.py' in \
+            os.listdir('image_scanner/'):
+        rest_py = 'image_scanner/rest.py'
+    elif os.path.exists('/usr/lib/python2.7/site-packages/'
+                        'image_scanner/rest.py'):
+        rest_py = '/usr/lib/python2.7/site-packages/image_scanner/rest.py'
+    else:
+        print "Unable to find rest.py"
+        sys.exit(1)
+
+    cmd = ['uwsgi', '--plugin', 'python,http', '--socket', host_port,
+           '--protocol=http', '--set', 'dockerhost={0}'.format(dockerhost),
+           '--wsgi-file', rest_py]
+    subprocess.call(cmd, preexec_fn=set_death_signal_int)
